@@ -128,8 +128,7 @@
 
     <div class="group">
       <label class="h">Layout</label>
-      <button id="recompute" style="cursor:pointer;">Recompute t-SNE on selection</button>
-      <button id="restore" style="cursor:pointer;margin-top:6px;display:none;">↩ Restore full map</button>
+      <label class="toggle"><input type="checkbox" id="recomputeToggle" /> Recompute t-SNE on selection</label>
       <div class="stat" id="layoutStat">Showing the full-dataset t-SNE.</div>
     </div>
 
@@ -575,30 +574,29 @@ function normalizeInto(members, Y){
 }
 async function recompute(){
   if(tsneTimer){ clearInterval(tsneTimer); tsneTimer=null; }
-  const setEl=document.getElementById("layoutStat"), btn=document.getElementById("recompute");
+  const setEl=document.getElementById("layoutStat"), tog=document.getElementById("recomputeToggle");
   // members = currently visible points under the (global) filters
   activeSet=null;
   let members=[]; for(let i=0;i<D.n;i++) if(passes(i)) members.push(i);
-  if(members.length<10){ setEl.textContent="Select at least ~10 drawings to recompute."; return; }
+  if(members.length<10){ setEl.textContent="Select at least ~10 drawings to recompute."; tog.checked=false; return; }
   let sampled=false;
   if(members.length>RECOMPUTE_CAP){
     // random subsample for responsiveness
     for(let k=members.length-1;k>0;k--){ const j=Math.floor(Math.random()*(k+1)); [members[k],members[j]]=[members[j],members[k]]; }
     members=members.slice(0,RECOMPUTE_CAP); sampled=true;
   }
-  btn.disabled=true; setEl.textContent="Loading features…";
+  tog.disabled=true; setEl.textContent="Loading features…";
   await loadFeats();
   const X=members.map(vecOf);
   setEl.textContent=`Running t-SNE on ${members.length} drawings…`;
   const eng=makeTsne(X);
   activeSet=new Set(members);
-  document.getElementById("restore").style.display="block";
   scale=1; tx=0; ty=0; computeFit(cv.clientWidth,cv.clientHeight);
   const ITERS=300;
   tsneTimer=setInterval(()=>{
     let it=0; for(let s=0;s<3;s++) it=eng.next();   // 3 iters per tick
     normalizeInto(members, eng.Y); overlaysDirty=true; draw();
-    if(it>=ITERS){ clearInterval(tsneTimer); tsneTimer=null; btn.disabled=false;
+    if(it>=ITERS){ clearInterval(tsneTimer); tsneTimer=null; tog.disabled=false;
       setEl.innerHTML=`Custom t-SNE on <b>${members.length}</b> drawings${sampled?` (random sample of the selection)`:''}.`;
       updateStat(); }
   }, 0);
@@ -608,13 +606,11 @@ function exitCustom(){
   if(tsneTimer){ clearInterval(tsneTimer); tsneTimer=null; }
   for(let i=0;i<D.n;i++){ D.x[i]=D.gx[i]; D.y[i]=D.gy[i]; }
   activeSet=null; overlaysDirty=true;
-  document.getElementById("restore").style.display="none";
-  document.getElementById("recompute").disabled=false;
+  const tog=document.getElementById("recomputeToggle"); tog.checked=false; tog.disabled=false;
   document.getElementById("layoutStat").textContent="Showing the full-dataset t-SNE.";
 }
 function restoreLayout(){ exitCustom(); scale=1; tx=0; ty=0; resize(); updateStat(); }
-document.getElementById("recompute").onclick=recompute;
-document.getElementById("restore").onclick=restoreLayout;
+document.getElementById("recomputeToggle").onchange=e=>{ if(e.target.checked) recompute(); else restoreLayout(); };
 
 // ---------- load ----------
 async function load(){
