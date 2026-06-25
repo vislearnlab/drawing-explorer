@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Children's Drawing Explorer — Stroke by Stroke</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#161a21; --panel2:#1d222b; --line:#2a3140;
+    --ink:#e8ecf3; --muted:#9aa6b8; --accent:#5b9dff;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:var(--bg); color:var(--ink);
+    font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    display:flex; flex-direction:column; height:100vh; overflow:hidden;
+  }
+  header{
+    padding:12px 18px; border-bottom:1px solid var(--line);
+    display:flex; align-items:baseline; gap:14px; flex-wrap:wrap;
+  }
+  header h1{font-size:16px; margin:0; font-weight:650; letter-spacing:.2px}
+  header .sub{color:var(--muted); font-size:12px}
+  header .spacer{flex:1}
+  .main{flex:1; display:flex; min-height:0}
+  /* sidebar */
+  .side{
+    width:230px; flex:none; border-right:1px solid var(--line);
+    background:var(--panel); padding:14px; overflow:auto;
+  }
+  .side h2{font-size:11px; text-transform:uppercase; letter-spacing:.08em;
+    color:var(--muted); margin:18px 0 8px}
+  .side h2:first-child{margin-top:0}
+  .cats{display:flex; flex-direction:column; gap:2px}
+  .cat{
+    text-align:left; background:none; border:0; color:var(--ink);
+    padding:6px 9px; border-radius:7px; cursor:pointer; font-size:13px;
+    display:flex; justify-content:space-between; gap:8px;
+  }
+  .cat:hover{background:var(--panel2)}
+  .cat.active{background:var(--accent); color:#06122a; font-weight:600}
+  .cat .n{color:var(--muted); font-variant-numeric:tabular-nums}
+  .cat.active .n{color:#0a1f47}
+  .control{margin-bottom:10px}
+  .control label{display:block; color:var(--muted); font-size:12px; margin-bottom:4px}
+  select,input[type=range]{width:100%}
+  select{background:var(--panel2); color:var(--ink); border:1px solid var(--line);
+    border-radius:7px; padding:6px 8px}
+  .legend{display:flex; flex-direction:column; gap:3px}
+  .legend .item{
+    display:flex; align-items:center; gap:8px; padding:3px 6px; border-radius:6px;
+    cursor:pointer; font-size:12.5px; user-select:none;
+  }
+  .legend .item:hover{background:var(--panel2)}
+  .legend .item.off{opacity:.32}
+  .legend .sw{width:13px; height:13px; border-radius:3px; flex:none}
+  .legend .item .cn{margin-left:auto; color:var(--muted); font-variant-numeric:tabular-nums}
+  /* grid */
+  .content{flex:1; overflow:auto; padding:16px}
+  .grid{
+    display:grid; gap:12px;
+    grid-template-columns:repeat(auto-fill,minmax(132px,1fr));
+  }
+  .card{
+    background:var(--panel); border:1px solid var(--line); border-radius:10px;
+    padding:8px; cursor:pointer; transition:border-color .12s, transform .12s;
+  }
+  .card:hover{border-color:var(--accent); transform:translateY(-2px)}
+  .card svg{width:100%; aspect-ratio:1; height:auto; display:block; background:#fff; border-radius:6px}
+  .card .meta{display:flex; justify-content:space-between; margin-top:6px;
+    color:var(--muted); font-size:11.5px}
+  .empty{color:var(--muted); padding:40px; text-align:center}
+  /* modal */
+  .overlay{
+    position:fixed; inset:0; background:rgba(6,8,12,.74); backdrop-filter:blur(3px);
+    display:none; align-items:center; justify-content:center; z-index:20; padding:24px;
+  }
+  .overlay.show{display:flex}
+  .modal{
+    background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    width:min(760px,96vw); max-height:94vh; overflow:auto; padding:18px 20px;
+  }
+  .modal .top{display:flex; align-items:baseline; gap:10px; margin-bottom:12px}
+  .modal .top h3{margin:0; font-size:16px; text-transform:capitalize}
+  .modal .top .tag{color:var(--muted); font-size:12.5px}
+  .modal .close{margin-left:auto; background:none; border:0; color:var(--muted);
+    font-size:22px; cursor:pointer; line-height:1}
+  .stage{background:#fff; border-radius:10px; display:flex; justify-content:center;
+    width:min(440px,72vh,100%); aspect-ratio:1; margin:0 auto}
+  .stage svg{width:100%; height:100%; display:block}
+  .controls{display:flex; align-items:center; gap:12px; margin:14px 0 6px}
+  .btn{
+    background:var(--accent); color:#06122a; border:0; border-radius:8px;
+    padding:8px 14px; font-weight:650; cursor:pointer; font-size:13px;
+  }
+  .btn.ghost{background:var(--panel2); color:var(--ink); border:1px solid var(--line)}
+  .scrub{flex:1; display:flex; align-items:center; gap:9px}
+  .scrub input{flex:1}
+  .scrub .lab{color:var(--muted); font-size:12px; min-width:78px; text-align:right;
+    font-variant-numeric:tabular-nums}
+  .speed{display:flex; align-items:center; gap:6px; color:var(--muted); font-size:12px}
+  .nowpart{margin-top:4px; color:var(--muted); font-size:13px; min-height:20px}
+  .nowpart b{color:var(--ink)}
+  .hint{color:var(--muted); font-size:11.5px; margin-top:2px}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#2a3140;border-radius:8px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Children's Drawing Explorer</h1>
+  <span class="sub">stroke&#8209;by&#8209;stroke · part&#8209;labeled · ages 2–10</span>
+  <span class="spacer"></span>
+  <span class="sub" id="statline"></span>
+</header>
+
+<div class="main">
+  <aside class="side">
+    <h2>Category</h2>
+    <div class="cats" id="cats"></div>
+
+    <h2>Age</h2>
+    <div class="control">
+      <select id="ageSel"><option value="">all ages</option></select>
+    </div>
+
+    <h2>Color = part <span id="legHint"></span></h2>
+    <div class="legend" id="legend"></div>
+  </aside>
+
+  <section class="content">
+    <div class="grid" id="grid"></div>
+    <div class="empty" id="empty" style="display:none">No drawings match.</div>
+  </section>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <div class="top">
+      <h3 id="mTitle"></h3>
+      <span class="tag" id="mTag"></span>
+      <button class="close" id="mClose">&times;</button>
+    </div>
+    <div class="stage"><svg id="mStage" preserveAspectRatio="xMidYMid meet"></svg></div>
+    <div class="controls">
+      <button class="btn" id="playBtn">▶ Play</button>
+      <div class="scrub">
+        <input type="range" id="scrub" min="0" max="1" step="0.001" value="1">
+        <span class="lab" id="scrubLab"></span>
+      </div>
+      <div class="speed">
+        speed
+        <select id="speedSel">
+          <option value="0.5">0.5×</option>
+          <option value="1" selected>1×</option>
+          <option value="2">2×</option>
+          <option value="4">4×</option>
+        </select>
+      </div>
+    </div>
+    <div class="nowpart" id="nowpart"></div>
+    <div class="hint">Hover a stroke to see its part &amp; annotator agreement. Drag the slider to scrub.</div>
+  </div>
+</div>
+
+<script>
+const DATA_DIR = "strokes_data";
+// stroke rendering
+const STROKE_W = 2.6;
+// distinct palette for part labels (low-meaning labels fall back to gray)
+const PALETTE = ["#5b9dff","#ff6b6b","#4ecb8d","#ffd166","#c792ea","#ff9f43",
+  "#48cae4","#f4978e","#90be6d","#e07a5f","#b5179e","#06d6a0","#ef476f",
+  "#118ab2","#f7b801","#7cb518","#9b5de5","#00bbf9","#fb5607","#8ac926",
+  "#ff70a6","#3a86ff"];
+const GRAY = "#b9c0cc";
+const LOW_MEANING = new Set(["unintelligible","other","none","?","na","n/a",""]);
+
+let INDEX = null;          // index.json
+let CUR = null;            // {category, drawings, partColor, partCounts}
+let curAge = "";
+let hiddenParts = new Set();
+
+const $ = s => document.querySelector(s);
+
+function partColorMap(ranked){
+  // ranked: [[part,count],...] for this category
+  const map = {}; let pi = 0;
+  for(const [p] of ranked){
+    if(LOW_MEANING.has(p.toLowerCase())) map[p] = GRAY;
+    else map[p] = PALETTE[pi++ % PALETTE.length];
+  }
+  return map;
+}
+
+async function init(){
+  INDEX = await (await fetch(`${DATA_DIR}/index.json`)).json();
+  const cats = $("#cats");
+  for(const c of INDEX.categories){
+    const b = document.createElement("button");
+    b.className = "cat"; b.dataset.cat = c.name;
+    b.innerHTML = `<span>${c.name}</span><span class="n">${c.n}</span>`;
+    b.onclick = () => selectCategory(c.name);
+    cats.appendChild(b);
+  }
+  const total = INDEX.categories.reduce((a,c)=>a+c.n,0);
+  $("#statline").textContent = `${INDEX.categories.length} categories · ${total} drawings`;
+  selectCategory(INDEX.categories[0].name);
+}
+
+async function selectCategory(name){
+  document.querySelectorAll(".cat").forEach(b=>b.classList.toggle("active",b.dataset.cat===name));
+  const ranked = INDEX.parts[name];
+  const data = await (await fetch(`${DATA_DIR}/${name}.json`)).json();
+  CUR = {category:name, drawings:data.drawings, partColor:partColorMap(ranked),
+         partCounts:Object.fromEntries(ranked)};
+  hiddenParts = new Set();
+  buildAgeFilter(name);
+  buildLegend(ranked);
+  renderGrid();
+}
+
+function buildAgeFilter(name){
+  const ages = INDEX.categories.find(c=>c.name===name).ages;
+  const sel = $("#ageSel");
+  sel.innerHTML = `<option value="">all ages</option>` +
+    ages.map(a=>`<option value="${a}">age ${a}</option>`).join("");
+  sel.value = curAge && ages.includes(+curAge) ? curAge : "";
+  curAge = sel.value;
+  sel.onchange = () => { curAge = sel.value; renderGrid(); };
+}
+
+function buildLegend(ranked){
+  const leg = $("#legend"); leg.innerHTML = "";
+  $("#legHint").textContent = "(click to toggle)";
+  for(const [part,count] of ranked){
+    const item = document.createElement("div");
+    item.className = "item";
+    item.innerHTML = `<span class="sw" style="background:${CUR.partColor[part]}"></span>`+
+      `<span>${part}</span><span class="cn">${count}</span>`;
+    item.onclick = () => {
+      if(hiddenParts.has(part)) hiddenParts.delete(part); else hiddenParts.add(part);
+      item.classList.toggle("off", hiddenParts.has(part));
+      renderGrid(); // refresh thumbnails to dim hidden parts
+    };
+    leg.appendChild(item);
+  }
+}
+
+function strokePath(stroke, color, extra=""){
+  const p = document.createElementNS("http://www.w3.org/2000/svg","path");
+  p.setAttribute("d", stroke.d);
+  p.setAttribute("fill","none");
+  p.setAttribute("stroke", color);
+  p.setAttribute("stroke-width", STROKE_W);
+  p.setAttribute("stroke-linecap","round");
+  p.setAttribute("stroke-linejoin","round");
+  if(extra) p.setAttribute("style", extra);
+  return p;
+}
+
+function makeThumb(d){
+  const svg = document.createElementNS("http://www.w3.org/2000/svg","svg");
+  svg.setAttribute("viewBox", d.vb.join(" "));
+  svg.setAttribute("preserveAspectRatio","xMidYMid meet");
+  const paths = [];
+  for(const s of d.strokes){
+    const hidden = hiddenParts.has(s.p);
+    const color = hidden ? "#eef0f3" : CUR.partColor[s.p] || GRAY;
+    const p = strokePath(s, color);
+    svg.appendChild(p);
+    paths.push(p);
+  }
+  return {svg, paths};
+}
+
+function filtered(){
+  return CUR.drawings.filter(d => !curAge || String(d.age)===String(curAge));
+}
+
+/* ---------- thumbnail autoplay engine (QuickDraw-style looping draw) ---------- */
+const THUMB_SPEED = 650;   // path units drawn per second
+const THUMB_HOLD = 1.6;    // seconds to hold the finished drawing before redraw
+let thumbEngine = {items:[], raf:0, io:null, lastTs:0};
+
+function applyProgress(paths, lens, total, frac){
+  const target = frac * total;
+  let acc = 0;
+  for(let i=0;i<paths.length;i++){
+    const L = lens[i], p = paths[i];
+    if(acc + L <= target){ p.style.strokeDashoffset = 0; acc += L; }
+    else if(acc >= target){ p.style.strokeDashoffset = L; }
+    else { p.style.strokeDashoffset = L * (1 - (target-acc)/L); acc += L; }
+  }
+}
+
+function thumbTick(ts){
+  const e = thumbEngine;
+  if(!e.lastTs) e.lastTs = ts;
+  const dt = Math.min(0.05, (ts - e.lastTs)/1000); e.lastTs = ts;
+  for(const it of e.items){
+    if(!it.visible) continue;
+    it.clock += dt;
+    if(it.state === "delay"){
+      if(it.clock >= it.delay){ it.state = "draw"; it.clock = 0; }
+    } else if(it.state === "draw"){
+      const dur = it.total / THUMB_SPEED;
+      const frac = Math.min(1, it.clock / dur);
+      applyProgress(it.paths, it.lens, it.total, frac);
+      if(frac >= 1){ it.state = "hold"; it.clock = 0; }
+    } else if(it.state === "hold"){
+      if(it.clock >= THUMB_HOLD){ it.state = "draw"; it.clock = 0; }
+    }
+  }
+  e.raf = requestAnimationFrame(thumbTick);
+}
+
+function stopThumbs(){
+  cancelAnimationFrame(thumbEngine.raf);
+  if(thumbEngine.io) thumbEngine.io.disconnect();
+  thumbEngine = {items:[], raf:0, io:null, lastTs:0};
+}
+
+function startThumbs(){
+  // measure lengths now that paths are in the DOM, prime them hidden, then loop
+  const io = new IntersectionObserver(ents => {
+    for(const ent of ents){
+      const it = ent.target._thumb;
+      if(it) it.visible = ent.isIntersecting;
+    }
+  }, {rootMargin:"120px"});
+  for(const it of thumbEngine.items){
+    it.lens = it.paths.map(p => { try { return p.getTotalLength(); } catch(e){ return 0.001; } });
+    it.total = it.lens.reduce((a,b)=>a+b,0) || 1;
+    it.paths.forEach((p,i) => {
+      const L = it.lens[i] || 0.001;
+      p.style.strokeDasharray = L; p.style.strokeDashoffset = L;
+    });
+    it.state = "delay"; it.clock = 0; it.visible = true;
+    it.el._thumb = it; io.observe(it.el);
+  }
+  thumbEngine.io = io;
+  thumbEngine.raf = requestAnimationFrame(thumbTick);
+}
+
+function renderGrid(){
+  stopThumbs();
+  const grid = $("#grid"); grid.innerHTML = "";
+  const list = filtered();
+  $("#empty").style.display = list.length ? "none" : "block";
+  for(const d of list){
+    const card = document.createElement("div");
+    card.className = "card";
+    const {svg, paths} = makeThumb(d);
+    card.appendChild(svg);
+    card.title = `age ${d.age ?? "?"} · ${d.strokes.length} strokes`;
+    card.onclick = () => openModal(d);
+    grid.appendChild(card);
+    thumbEngine.items.push({el:card, paths, delay: Math.random()*1.2});
+  }
+  startThumbs();
+}
+
+/* ---------- playback modal ---------- */
+let player = null;
+
+function openModal(d){
+  $("#mTitle").textContent = CUR.category;
+  $("#mTag").textContent = `age ${d.age ?? "?"} · ${d.strokes.length} strokes`;
+  const svg = $("#mStage");
+  svg.setAttribute("viewBox", d.vb.join(" "));
+  svg.innerHTML = "";
+  const paths = [];
+  d.strokes.forEach((s,i) => {
+    const p = strokePath(s, CUR.partColor[s.p] || GRAY);
+    p.dataset.i = i;
+    p.addEventListener("mousemove", () => showPart(s));
+    svg.appendChild(p);
+    paths.push(p);
+  });
+  // compute lengths now that paths are in the DOM
+  const lens = paths.map(p => { try { return p.getTotalLength(); } catch(e){ return 0; } });
+  paths.forEach((p,i) => {
+    const L = lens[i] || 0.001;
+    p.style.strokeDasharray = L; p.style.strokeDashoffset = L;
+  });
+
+  player = {d, paths, lens, total:lens.reduce((a,b)=>a+b,0)||1, t:0, playing:false, raf:0, last:0};
+  $("#overlay").classList.add("show");
+  setSpeedHandlers();
+  // autoplay: draw it from the first stroke
+  setProgress(0);
+  player.playing = true; player.last = 0;
+  $("#playBtn").textContent = "❚❚ Pause";
+  player.raf = requestAnimationFrame(tick);
+}
+
+function showPart(s){
+  const el = $("#nowpart");
+  if(!s){ el.innerHTML = ""; return; }
+  const [agreed,total] = s.a || [];
+  const agree = (agreed!=null && total!=null) ? ` · ${agreed} of ${total} annotators agreed` : "";
+  el.innerHTML = `Part: <b style="color:${CUR.partColor[s.p]||GRAY}">${s.p}</b>${agree}`;
+}
+
+// progress in [0,1] over cumulative stroke length
+function setProgress(frac){
+  if(!player) return;
+  player.t = Math.max(0, Math.min(1, frac));
+  const target = player.t * player.total;
+  let acc = 0, curIdx = -1;
+  for(let i=0;i<player.paths.length;i++){
+    const L = player.lens[i];
+    const p = player.paths[i];
+    if(acc + L <= target){ p.style.strokeDashoffset = 0; acc += L; curIdx = i; }
+    else if(acc >= target){ p.style.strokeDashoffset = L; }
+    else { p.style.strokeDashoffset = L * (1 - (target-acc)/L); curIdx = i; acc += L; }
+  }
+  $("#scrub").value = player.t;
+  const shown = player.paths.filter(p=>parseFloat(p.style.strokeDashoffset)<1).length;
+  $("#scrubLab").textContent = `${Math.min(shown,player.paths.length)}/${player.paths.length} strokes`;
+  if(curIdx>=0) showPart(player.d.strokes[curIdx]);
+}
+
+function tick(ts){
+  if(!player || !player.playing) return;
+  if(!player.last) player.last = ts;
+  const dt = (ts - player.last)/1000; player.last = ts;
+  const speed = parseFloat($("#speedSel").value);
+  // draw ~420 user-units of path length per second at 1x
+  const advance = (420 * speed * dt) / player.total;
+  let nt = player.t + advance;
+  if(nt >= 1){ nt = 1; player.playing = false; $("#playBtn").textContent = "▶ Play"; }
+  setProgress(nt);
+  if(player.playing) player.raf = requestAnimationFrame(tick);
+}
+
+function setSpeedHandlers(){
+  $("#playBtn").onclick = () => {
+    if(!player) return;
+    if(player.playing){ player.playing=false; cancelAnimationFrame(player.raf);
+      $("#playBtn").textContent="▶ Play"; return; }
+    if(player.t >= 1) setProgress(0);          // replay from start
+    player.playing = true; player.last = 0;
+    $("#playBtn").textContent = "❚❚ Pause";
+    player.raf = requestAnimationFrame(tick);
+  };
+  $("#scrub").oninput = e => {
+    if(player){ player.playing=false; cancelAnimationFrame(player.raf);
+      $("#playBtn").textContent="▶ Play"; setProgress(parseFloat(e.target.value)); }
+  };
+}
+
+function closeModal(){
+  if(player){ player.playing=false; cancelAnimationFrame(player.raf); }
+  $("#overlay").classList.remove("show");
+}
+$("#mClose").onclick = closeModal;
+$("#overlay").onclick = e => { if(e.target.id==="overlay") closeModal(); };
+document.addEventListener("keydown", e => {
+  if(e.key==="Escape") closeModal();
+  if(e.key===" " && $("#overlay").classList.contains("show")){ e.preventDefault(); $("#playBtn").click(); }
+});
+
+init();
+</script>
+</body>
+</html>
