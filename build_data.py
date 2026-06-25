@@ -1,0 +1,101 @@
+#!/usr/bin/env python3
+"""Build the data file for the drawing explorer.
+
+Loads the 48-d CLIP per-category probability vectors, joins each drawing to its
+CLIP recognizability scores, computes a 2-D t-SNE layout, and writes a compact
+JSON (parallel arrays) consumed by index.html.
+
+Run from the repo root:  python3 explorer/build_data.py
+"""
+import csv
+import json
+import os
+import time
+
+import numpy as np
+from sklearn.manifold import TSNE
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DRAW_REL = "data/drawings/stringent_cleaned_dataset_meta/stringent_cleaned_dataset"
+NPY = os.path.join(ROOT, "data/clip_outputs/fullset/CLIP_FEATURES_kid_museumstation.npy")
+META = os.path.join(ROOT, "data/clip_outputs/fullset/CLIP_METADATA_kid.csv")
+MERGED = os.path.join(ROOT, "data/preprocessed_data/merged_clip_class_and_meta.csv")
+OUT = os.path.join(ROOT, "explorer", "points.json")
+
+
+def num(v):
+    try:
+        f = float(v)
+        return None if (f != f) else f  # drop NaN
+    except (TypeError, ValueError):
+        return None
+
+
+def main():
+    t0 = time.time()
+    feats = np.load(NPY).astype(np.float32)            # (37770, 48)
+    meta = list(csv.DictReader(open(META)))
+    assert len(meta) == feats.shape[0], (len(meta), feats.shape)
+
+    merged = {r["filename"]: r for r in csv.DictReader(open(MERGED))}
+
+    def fname(r):
+        return f"{r['label']}_sketch_age{r['age']}_cdm_{r['session']}.png"
+
+    # category vocabulary (sorted for stable indices)
+    cats = sorted({r["label"] for r in meta})
+    cat_idx = {c: i for i, c in enumerate(cats)}
+
+    rows, keep = [], []
+    for i, m in enumerate(meta):
+        f = fname(m)
+        mr = merged.get(f)
+        if mr is None:
+            continue
+        keep.append(i)
+        rows.append((f, m, mr))
+    feats = feats[keep]
+    print(f"joined {len(rows)} drawings in {time.time()-t0:.1f}s; running t-SNE on {feats.shape}...")
+
+    # standardize features then t-SNE to 2-D
+    fz = (feats - feats.mean(0)) / (feats.std(0) + 1e-8)
+    t1 = time.time()
+    xy = TSNE(
+        n_components=2, perplexity=30, init="pca",
+        learning_rate="auto" if "auto" in TSNE.__init__.__code__.co_varnames else 200.0,
+        random_state=0, verbose=1,
+    ).fit_transform(fz)
+    print(f"t-SNE done in {time.time()-t1:.1f}s")
+
+    # normalize layout to [0, 1000] for compact ints
+    xy -= xy.min(0)
+    xy /= xy.max(0).max()
+    xy *= 1000.0
+    xy = np.round(xy, 1)
+
+    out = {
+        "draw_dir": DRAW_REL,
+        "categories": cats,
+        "n": len(rows),
+        # parallel arrays
+        "file": [r[0] for r in rows],
+        "x": xy[:, 0].tolist(),
+        "y": xy[:, 1].tolist(),
+        "cat": [cat_idx[r[1]["label"]] for r in rows],
+        "age": [int(r[1]["age"]) for r in rows],
+        "correct": [1 if (num(r[2]["correct_or_not"]) or 0) >= 0.5 else 0 for r in rows],
+        "target_prob": [round(num(r[2]["target_label_prob"]) or 0.0, 4) for r in rows],
+        "log_odds": [round(num(r[2]["log_odds"]) or 0.0, 3) for r in rows],
+        "max_prob": [round(num(r[2]["max_prob"]) or 0.0, 4) for r in rows],
+        "guess": [cat_idx.get(r[2]["clip_category"], -1) for r in rows],
+        "strokes": [num(r[2]["num_strokes"]) for r in rows],
+        "duration": [round(num(r[2]["draw_duration"]) or 0.0, 1) for r in rows],
+        "freq": [round(num(r[2]["drawing_frequency"]) or 0.0, 2) for r in rows],
+    }
+    with open(OUT, "w") as fh:
+        json.dump(out, fh, separators=(",", ":"))
+    print(f"wrote {OUT}  ({os.path.getsize(OUT)/1e6:.1f} MB)  total {time.time()-t0:.1f}s")
+
+
+if __name__ == "__main__":
+    main()
