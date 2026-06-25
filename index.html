@@ -122,8 +122,8 @@
 
     <div class="group">
       <label class="h">Map overlays</label>
-      <label class="toggle"><input type="checkbox" id="showLabels" checked /> Category labels</label>
-      <label class="toggle"><input type="checkbox" id="showThumbs" checked /> Example drawing per category</label>
+      <label class="toggle"><input type="checkbox" id="showLabels" /> Category labels</label>
+      <label class="toggle"><input type="checkbox" id="showThumbs" /> Example drawing per category</label>
     </div>
 
     <div class="group">
@@ -190,7 +190,7 @@ function computeFit(w,h){
 
 // ---------- filters ----------
 const F = { cats:new Set(), ageMin:2, ageMax:10, recogOnly:false, correctOnly:false,
-            showLabels:true, showThumbs:true };
+            showLabels:false, showThumbs:false };
 function catSelected(i){ return F.cats.size===0 || F.cats.has(D.cat[i]); }
 let activeSet=null;  // when a custom t-SNE layout is active, only these indices are shown
 function passes(i){
