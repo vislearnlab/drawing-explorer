@@ -185,9 +185,17 @@ def main():
         "groups": {label: sorted(cat_idx[c] for c in cats if c in cat_idx)
                    for label, cats in game_cats.items()},
     }
+    out["feat_dim"] = int(feats.shape[1])
     with open(OUT, "w") as fh:
         json.dump(out, fh, separators=(",", ":"))
     print(f"wrote {OUT}  ({os.path.getsize(OUT)/1e6:.1f} MB)  total {time.time()-t0:.1f}s")
+
+    # raw CLIP vectors (quantized uint8, row-aligned with points.json) for
+    # client-side t-SNE recompute on a selected subset.
+    q = np.clip(np.round(feats * 255.0), 0, 255).astype(np.uint8)
+    feat_path = os.path.join(ROOT, "explorer", "features.u8.bin")
+    q.tofile(feat_path)
+    print(f"wrote {feat_path}  ({os.path.getsize(feat_path)/1e6:.1f} MB; {q.shape})")
 
 
 if __name__ == "__main__":

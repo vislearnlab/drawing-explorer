@@ -127,6 +127,13 @@
     </div>
 
     <div class="group">
+      <label class="h">Layout</label>
+      <button id="recompute" style="cursor:pointer;">Recompute t-SNE on selection</button>
+      <button id="restore" style="cursor:pointer;margin-top:6px;display:none;">↩ Restore full map</button>
+      <div class="stat" id="layoutStat">Showing the full-dataset t-SNE.</div>
+    </div>
+
+    <div class="group">
       <button id="reset" style="cursor:pointer;">Reset view</button>
     </div>
 
@@ -185,8 +192,10 @@ function computeFit(w,h){
 const F = { cats:new Set(), ageMin:2, ageMax:10, recogOnly:false, correctOnly:false,
             showLabels:true, showThumbs:true };
 function catSelected(i){ return F.cats.size===0 || F.cats.has(D.cat[i]); }
+let activeSet=null;  // when a custom t-SNE layout is active, only these indices are shown
 function passes(i){
-  if(!catSelected(i)) return false;
+  if(activeSet){ if(!activeSet.has(i)) return false; }   // frozen selection; age/recog still filter
+  else if(!catSelected(i)) return false;
   const a=D.age[i]; if(a<F.ageMin||a>F.ageMax) return false;
   if(F.recogOnly && D.kid_recog[i]==null) return false;
   if(F.correctOnly && !D.correct[i]) return false;
@@ -214,17 +223,21 @@ function colorOf(i){
 let OV=[], overlaysDirty=true;
 function recomputeOverlays(){
   OV=[];
-  const n=D.categories.length;
-  const sx=new Float64Array(n), sy=new Float64Array(n), cnt=new Int32Array(n);
-  const best=new Int32Array(n).fill(-1), bestD=new Float64Array(n);
+  const n=D.categories.length, byCat=Array.from({length:n},()=>[]);
+  let cx=0, cy=0, tot=0;
   for(let i=0;i<D.n;i++){
     if(!passes(i)) continue;
-    const c=D.cat[i];
-    sx[c]+=D.x[i]; sy[c]+=D.y[i]; cnt[c]++;
-    const dx=D.x[i]-500, dy=D.y[i]-500, dd=dx*dx+dy*dy;   // farthest from map center = arm endpoint
-    if(best[c]<0 || dd>bestD[c]){ bestD[c]=dd; best[c]=i; }
+    byCat[D.cat[i]].push(i); cx+=D.x[i]; cy+=D.y[i]; tot++;
   }
-  for(let c=0;c<n;c++) if(cnt[c]) OV.push({cat:c, idx:best[c], lx:sx[c]/cnt[c], ly:sy[c]/cnt[c]});
+  if(!tot) return;
+  cx/=tot; cy/=tot;
+  // representative drawing = ~85th-percentile distance from the visible centroid:
+  // out on the category's arm, but robust to lone outliers (which fly to the edge).
+  for(let c=0;c<n;c++){
+    const pts=byCat[c]; if(!pts.length) continue;
+    pts.sort((a,b)=>((D.x[a]-cx)**2+(D.y[a]-cy)**2)-((D.x[b]-cx)**2+(D.y[b]-cy)**2));
+    OV.push({cat:c, idx:pts[Math.min(pts.length-1, Math.floor(0.85*(pts.length-1)))]});
+  }
 }
 const imgCache=new Map(); let rafQueued=false;
 function queueDraw(){ if(rafQueued) return; rafQueued=true; requestAnimationFrame(()=>{rafQueued=false;draw();}); }
@@ -240,27 +253,30 @@ function roundRect(x,y,w,h,r){ ctx.beginPath();
   ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
 function drawOverlays(){
   const w=cv.clientWidth, h=cv.clientHeight, nC=D.categories.length;
-  if(F.showThumbs){
-    const s=Math.max(38, Math.min(82, 42*Math.sqrt(scale)));
-    for(const o of OV){
-      const [px,py]=worldToScreen(D.x[o.idx],D.y[o.idx]);
-      if(px<-s||py<-s||px>w+s||py>h+s) continue;
-      const x=px-s/2, y=py-s/2, col=colorOf(o.idx)||catColor(o.cat,nC);
-      ctx.fillStyle="#fff"; roundRect(x,y,s,s,6); ctx.fill();
+  const showT=F.showThumbs, showL=F.showLabels;
+  if(!showT && !showL) return;
+  const s=Math.max(40, Math.min(86, 44*Math.sqrt(scale)));
+  ctx.textAlign="center"; ctx.textBaseline="top";
+  ctx.font="700 12px -apple-system,Segoe UI,Roboto,sans-serif";
+  // both the example drawing AND its label live at the category's t-SNE endpoint,
+  // so labels stay spread out (not piled in the dense centre) and pair with the image.
+  for(const o of OV){
+    const [px,py]=worldToScreen(D.x[o.idx],D.y[o.idx]);
+    if(px<-s||py<-s-20||px>w+s||py>h+s+20) continue;
+    const col=colorOf(o.idx)||catColor(o.cat,nC);
+    if(showT){
+      const x=px-s/2, y=py-s/2;
+      ctx.save(); ctx.shadowColor="rgba(0,0,0,.55)"; ctx.shadowBlur=9; ctx.shadowOffsetY=1;
+      ctx.fillStyle="#fff"; roundRect(x,y,s,s,6); ctx.fill(); ctx.restore();
       const img=getImg(D.file[o.idx]);
       if(img.complete && img.naturalWidth){ ctx.save(); roundRect(x,y,s,s,6); ctx.clip(); ctx.drawImage(img,x,y,s,s); ctx.restore(); }
       ctx.lineWidth=2.5; ctx.strokeStyle=col; roundRect(x,y,s,s,6); ctx.stroke();
     }
-  }
-  if(F.showLabels){
-    ctx.textAlign="center"; ctx.textBaseline="middle";
-    ctx.font="600 12.5px -apple-system,Segoe UI,Roboto,sans-serif";
-    for(const o of OV){
-      const [px,py]=worldToScreen(o.lx,o.ly);
-      if(px<0||py<0||px>w||py>h) continue;
+    if(showL){
       const t=D.categories[o.cat];
-      ctx.lineWidth=3.5; ctx.strokeStyle="rgba(10,13,18,.92)"; ctx.strokeText(t,px,py);
-      ctx.fillStyle=catColor(o.cat,nC,74); ctx.fillText(t,px,py);
+      const ly = showT ? py + s/2 + 4 : py - 6;
+      ctx.lineWidth=3.5; ctx.strokeStyle="rgba(10,13,18,.95)"; ctx.strokeText(t,px,ly);
+      ctx.fillStyle = showT ? "#fff" : catColor(o.cat,nC,76); ctx.fillText(t,px,ly);
     }
   }
 }
@@ -433,7 +449,7 @@ function buildCatList(){
     lab.innerHTML=`<input type="checkbox" value="${i}" checked> ${c}`;
     lab.querySelector("input").onchange=e=>{
       if(e.target.checked) F.cats.add(i); else F.cats.delete(i);
-      overlaysDirty=true; refreshCatUI(); draw(); updateStat();
+      exitCustom(); overlaysDirty=true; refreshCatUI(); draw(); updateStat();
     };
     list.appendChild(lab);
   });
@@ -450,7 +466,7 @@ function buildCatList(){
       if(g==="__all") D.categories.forEach((_,i)=>F.cats.add(i));
       else if(g==="__none") F.cats.clear();
       else { F.cats.clear(); D.groups[g].forEach(i=>F.cats.add(i)); }
-      overlaysDirty=true; refreshCatUI(); draw(); updateStat();
+      exitCustom(); overlaysDirty=true; refreshCatUI(); draw(); updateStat();
     };
   });
 }
@@ -472,9 +488,138 @@ document.getElementById("showThumbs").onchange=e=>{F.showThumbs=e.target.checked
 document.getElementById("reset").onclick=()=>{scale=1;tx=0;ty=0;resize();};
 window.addEventListener("resize",resize);
 
+// ---------- client-side t-SNE recompute on the current selection ----------
+// compact t-SNE (adapted from karpathy/tsnejs, MIT) — runs on the 48-d CLIP vectors
+const RECOMPUTE_CAP = 1200;
+let FEATS=null;           // Uint8Array(n*dim), lazily fetched
+let tsneTimer=null;
+function gauss(){ let u=0,v=0; while(!u)u=Math.random(); while(!v)v=Math.random();
+  return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+async function loadFeats(){
+  if(FEATS) return FEATS;
+  const buf=await (await fetch("features.u8.bin")).arrayBuffer();
+  FEATS=new Uint8Array(buf); return FEATS;
+}
+function vecOf(i){ const d=D.feat_dim, o=i*d, v=new Float64Array(d);
+  for(let k=0;k<d;k++) v[k]=FEATS[o+k]/255; return v; }
+
+function makeTsne(X){
+  const N=X.length, dim=X[0].length, perp=Math.min(30, Math.max(5,(N-1)/3)), eps=12;
+  // pairwise squared distances on standardized features
+  const mean=new Float64Array(dim), sd=new Float64Array(dim);
+  for(const r of X) for(let d=0;d<dim;d++) mean[d]+=r[d];
+  for(let d=0;d<dim;d++) mean[d]/=N;
+  for(const r of X) for(let d=0;d<dim;d++){ const t=r[d]-mean[d]; sd[d]+=t*t; }
+  for(let d=0;d<dim;d++) sd[d]=Math.sqrt(sd[d]/N)||1;
+  const Z=X.map(r=>{ const z=new Float64Array(dim); for(let d=0;d<dim;d++) z[d]=(r[d]-mean[d])/sd[d]; return z; });
+  const Dist=new Float64Array(N*N);
+  for(let i=0;i<N;i++) for(let j=i+1;j<N;j++){ let s=0; for(let d=0;d<dim;d++){const t=Z[i][d]-Z[j][d];s+=t*t;} Dist[i*N+j]=s; Dist[j*N+i]=s; }
+  // P with per-point perplexity calibration
+  const P=new Float64Array(N*N), logU=Math.log(perp);
+  for(let i=0;i<N;i++){
+    let beta=1, lo=-Infinity, hi=Infinity; const row=new Float64Array(N);
+    for(let it=0;it<50;it++){
+      let sum=0;
+      for(let j=0;j<N;j++){ if(i===j){row[j]=0;continue;} const p=Math.exp(-Dist[i*N+j]*beta); row[j]=p; sum+=p; }
+      sum=sum||1e-12; let H=0;
+      for(let j=0;j<N;j++){ const p=row[j]/sum; row[j]=p; if(p>1e-12) H-=p*Math.log(p); }
+      const diff=H-logU;
+      if(Math.abs(diff)<1e-5) break;
+      if(diff>0){ lo=beta; beta=(hi===Infinity)?beta*2:(beta+hi)/2; }
+      else { hi=beta; beta=(lo===-Infinity)?beta/2:(beta+lo)/2; }
+    }
+    for(let j=0;j<N;j++) P[i*N+j]=row[j];
+  }
+  let psum=0;
+  for(let i=0;i<N;i++) for(let j=0;j<N;j++){ const v=P[i*N+j]+P[j*N+i]; P[i*N+j]=v; psum+=v; }
+  psum=psum||1e-12;
+  for(let k=0;k<N*N;k++) P[k]=Math.max(P[k]/psum,1e-12);
+  let Y=[]; for(let i=0;i<N;i++) Y.push([gauss()*1e-4, gauss()*1e-4]);
+  const gains=Y.map(()=>[1,1]), step=Y.map(()=>[0,0]);
+  let iter=0;
+  return { Y, next(){
+    iter++;
+    const Q=new Float64Array(N*N); let qsum=0;
+    for(let i=0;i<N;i++) for(let j=i+1;j<N;j++){ const a=Y[i][0]-Y[j][0], b=Y[i][1]-Y[j][1];
+      const q=1/(1+a*a+b*b); Q[i*N+j]=q; Q[j*N+i]=q; qsum+=2*q; }
+    qsum=qsum||1e-12;
+    const exa=iter<100?4:1, mom=iter<250?0.5:0.8;
+    for(let i=0;i<N;i++){ let gx=0,gy=0;
+      for(let j=0;j<N;j++){ if(i===j) continue;
+        const pm=exa*P[i*N+j]-Q[i*N+j]/qsum, m=4*pm*Q[i*N+j];
+        gx+=m*(Y[i][0]-Y[j][0]); gy+=m*(Y[i][1]-Y[j][1]); }
+      const g=[gx,gy];
+      for(let d=0;d<2;d++){
+        gains[i][d]=Math.max((Math.sign(g[d])===Math.sign(step[i][d]))?gains[i][d]*0.8:gains[i][d]+0.2, 0.01);
+        step[i][d]=mom*step[i][d]-eps*gains[i][d]*g[d];
+        Y[i][d]+=step[i][d];
+      }
+    }
+    let mx=0,my=0; for(const y of Y){mx+=y[0];my+=y[1];} mx/=N;my/=N;
+    for(const y of Y){ y[0]-=mx; y[1]-=my; }
+    return iter;
+  }};
+}
+function pctile(sorted, p){ return sorted[Math.min(sorted.length-1, Math.max(0, Math.round(p*(sorted.length-1))))]; }
+function normalizeInto(members, Y){
+  // robust scaling: map the 2nd–98th percentile range to the view, clamp outliers
+  // to the edge so a few fliers don't compress the whole cloud into a dot.
+  const xs=Y.map(y=>y[0]).sort((a,b)=>a-b), ys=Y.map(y=>y[1]).sort((a,b)=>a-b);
+  const x0=pctile(xs,0.02), x1=pctile(xs,0.98), y0=pctile(ys,0.02), y1=pctile(ys,0.98);
+  const cx=(x0+x1)/2, cy=(y0+y1)/2, span=Math.max(x1-x0, y1-y0)||1;
+  for(let k=0;k<members.length;k++){
+    const nx=(Y[k][0]-cx)/span*900+500, ny=(Y[k][1]-cy)/span*900+500;
+    D.x[members[k]] = Math.max(8, Math.min(992, nx));
+    D.y[members[k]] = Math.max(8, Math.min(992, ny));
+  }
+}
+async function recompute(){
+  if(tsneTimer){ clearInterval(tsneTimer); tsneTimer=null; }
+  const setEl=document.getElementById("layoutStat"), btn=document.getElementById("recompute");
+  // members = currently visible points under the (global) filters
+  activeSet=null;
+  let members=[]; for(let i=0;i<D.n;i++) if(passes(i)) members.push(i);
+  if(members.length<10){ setEl.textContent="Select at least ~10 drawings to recompute."; return; }
+  let sampled=false;
+  if(members.length>RECOMPUTE_CAP){
+    // random subsample for responsiveness
+    for(let k=members.length-1;k>0;k--){ const j=Math.floor(Math.random()*(k+1)); [members[k],members[j]]=[members[j],members[k]]; }
+    members=members.slice(0,RECOMPUTE_CAP); sampled=true;
+  }
+  btn.disabled=true; setEl.textContent="Loading features…";
+  await loadFeats();
+  const X=members.map(vecOf);
+  setEl.textContent=`Running t-SNE on ${members.length} drawings…`;
+  const eng=makeTsne(X);
+  activeSet=new Set(members);
+  document.getElementById("restore").style.display="block";
+  scale=1; tx=0; ty=0; computeFit(cv.clientWidth,cv.clientHeight);
+  const ITERS=300;
+  tsneTimer=setInterval(()=>{
+    let it=0; for(let s=0;s<3;s++) it=eng.next();   // 3 iters per tick
+    normalizeInto(members, eng.Y); overlaysDirty=true; draw();
+    if(it>=ITERS){ clearInterval(tsneTimer); tsneTimer=null; btn.disabled=false;
+      setEl.innerHTML=`Custom t-SNE on <b>${members.length}</b> drawings${sampled?` (random sample of the selection)`:''}.`;
+      updateStat(); }
+  }, 0);
+}
+function exitCustom(){
+  if(!activeSet && !tsneTimer) return;
+  if(tsneTimer){ clearInterval(tsneTimer); tsneTimer=null; }
+  for(let i=0;i<D.n;i++){ D.x[i]=D.gx[i]; D.y[i]=D.gy[i]; }
+  activeSet=null; overlaysDirty=true;
+  document.getElementById("restore").style.display="none";
+  document.getElementById("recompute").disabled=false;
+  document.getElementById("layoutStat").textContent="Showing the full-dataset t-SNE.";
+}
+function restoreLayout(){ exitCustom(); scale=1; tx=0; ty=0; resize(); updateStat(); }
+document.getElementById("recompute").onclick=recompute;
+document.getElementById("restore").onclick=restoreLayout;
+
 // ---------- load ----------
 async function load(){
   const res=await fetch("points.json"); D=await res.json();
+  D.gx=D.x.slice(); D.gy=D.y.slice();   // keep the full-dataset layout for "restore"
   D.categories.forEach((_,i)=>F.cats.add(i));
   buildCatList(); refreshCatUI();
   const krn=D.kid_recog.filter(v=>v!=null).length;
