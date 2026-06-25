@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Children's Drawing Explorer · CLIP embeddings &amp; recognizability</title>
+<title>Children's Drawing Explorer · CLIP embeddings, model &amp; kid recognition</title>
 <style>
   :root { --bg:#0e1116; --panel:#171c24; --panel2:#1f2630; --line:#2a323d; --txt:#e6edf3; --muted:#8b97a7; --accent:#4ea1ff; }
   * { box-sizing:border-box; }
   html,body { margin:0; height:100%; background:var(--bg); color:var(--txt);
     font:13px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
-  #app { display:grid; grid-template-columns:300px 1fr; height:100vh; }
+  #app { display:grid; grid-template-columns:308px 1fr; height:100vh; }
   /* sidebar */
   #side { background:var(--panel); border-right:1px solid var(--line); padding:16px; overflow-y:auto; }
   #side h1 { font-size:15px; margin:0 0 2px; }
@@ -29,9 +29,19 @@
   #legend.grad .bar { height:12px; border-radius:4px; flex:1; }
   #legend .gradlabels { display:flex; justify-content:space-between; color:var(--muted); font-size:11px; }
   .stat { color:var(--muted); font-size:11px; margin-top:6px; }
-  .btnrow { display:flex; gap:8px; }
-  .btnrow button { cursor:pointer; }
+  .btnrow { display:flex; gap:6px; flex-wrap:wrap; }
+  .btnrow button { cursor:pointer; width:auto; flex:1; padding:6px 4px; font-size:12px; }
   .btnrow button:hover { border-color:var(--accent); }
+  .chip { cursor:pointer; width:auto; padding:5px 9px; font-size:11.5px; border-radius:20px; }
+  .chip:hover { border-color:var(--accent); }
+  /* category checklist */
+  #catlist { max-height:188px; overflow-y:auto; border:1px solid var(--line); border-radius:8px;
+    padding:6px 8px; background:var(--panel2); display:grid; grid-template-columns:1fr 1fr; gap:1px 10px; }
+  #catlist label { display:flex; align-items:center; gap:6px; font-size:12px; cursor:pointer;
+    text-transform:capitalize; padding:2px 0; }
+  #catlist input { accent-color:var(--accent); margin:0; }
+  .toggle { display:flex; align-items:center; gap:8px; cursor:pointer; user-select:none; padding:6px 0; }
+  .toggle input { accent-color:var(--accent); width:auto; }
   /* main */
   #main { position:relative; overflow:hidden; }
   #cv { display:block; width:100%; height:100%; cursor:crosshair; }
@@ -47,6 +57,7 @@
   #card td { padding:2px 0; }
   #card td.k { color:var(--muted); }
   #card td.v { text-align:right; font-variant-numeric:tabular-nums; }
+  #card tr.sec td { color:var(--accent); font-size:10.5px; text-transform:uppercase; letter-spacing:.04em; padding-top:7px; }
   .pill { display:inline-block; padding:1px 7px; border-radius:20px; font-size:11px; font-weight:600; }
   .pill.ok { background:#11351f; color:#5ed694; }
   .pill.no { background:#3a1b1b; color:#ff8a8a; }
@@ -60,27 +71,40 @@
 <div id="app">
   <aside id="side">
     <h1>Drawing Explorer</h1>
-    <div class="sub">Children's drawings in CLIP embedding space, colored by model recognizability. <span id="count"></span></div>
+    <div class="sub">Children's drawings in CLIP embedding space. <span id="count"></span></div>
 
     <div class="group">
       <label class="h" for="colorby">Color by</label>
       <select id="colorby">
-        <option value="target_prob">CLIP recognizability (target prob)</option>
-        <option value="correct">CLIP correct / incorrect</option>
-        <option value="log_odds">CLIP log-odds</option>
-        <option value="age">Age</option>
-        <option value="cat">Category</option>
+        <optgroup label="Model (CLIP)">
+          <option value="target_prob">CLIP recognizability (target prob)</option>
+          <option value="correct">CLIP correct / incorrect</option>
+          <option value="log_odds">CLIP log-odds</option>
+        </optgroup>
+        <optgroup label="Human recognition (subset)">
+          <option value="kid_recog">Kid recognition accuracy</option>
+          <option value="adult_recog">Adult recognition accuracy</option>
+        </optgroup>
+        <optgroup label="Other">
+          <option value="age">Producer age</option>
+          <option value="cat">Category</option>
+        </optgroup>
       </select>
       <div id="legend" class="group" style="margin-top:11px;"></div>
     </div>
 
     <div class="group">
-      <label class="h" for="catfilter">Category</label>
-      <select id="catfilter"><option value="-1">All categories</option></select>
+      <label class="h">Categories <span id="catCount" style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0;"></span></label>
+      <div class="btnrow" style="margin-bottom:6px;">
+        <button class="chip" data-grp="__all">All</button>
+        <button class="chip" data-grp="__none">None</button>
+        <span id="groupChips"></span>
+      </div>
+      <div id="catlist"></div>
     </div>
 
     <div class="group">
-      <label class="h">Age range</label>
+      <label class="h">Producer age range</label>
       <div class="rangewrap">
         <input type="range" id="ageMin" min="2" max="10" value="2" step="1" />
         <input type="range" id="ageMax" min="2" max="10" value="10" step="1" />
@@ -89,18 +113,12 @@
     </div>
 
     <div class="group">
-      <label class="h" for="recog">Min CLIP recognizability</label>
-      <div class="rangewrap">
-        <input type="range" id="recog" min="0" max="100" value="0" step="1" />
-        <span class="val" id="recogVal">≥ 0%</span>
-      </div>
+      <label class="toggle"><input type="checkbox" id="recogOnly" /> Only drawings with kid-recognition data <span id="recogCount" style="color:var(--muted)"></span></label>
+      <label class="toggle"><input type="checkbox" id="onlyCorrect" /> CLIP-correct drawings only</label>
     </div>
 
     <div class="group">
-      <div class="btnrow">
-        <button id="reset">Reset view</button>
-        <button id="onlyCorrect">Correct only</button>
-      </div>
+      <button id="reset" style="cursor:pointer;">Reset view</button>
     </div>
 
     <div class="stat" id="visStat"></div>
@@ -120,15 +138,16 @@
 </div>
 
 <script>
-const IMG_BASE_FALLBACKS = ["../", "./", ""]; // resolve drawings relative to repo root or local
+const IMG_BASE_FALLBACKS = ["../", "./", ""];
 let D = null, IMG_BASE = "../";
 const cv = document.getElementById("cv"), ctx = cv.getContext("2d");
 const card = document.getElementById("card");
+const NODATA = "#39414d";
 
 // ---------- color helpers ----------
 function lerp(a,b,t){return a+(b-a)*t;}
-// viridis-ish stops
-const VIRIDIS=[[68,1,84],[59,82,139],[33,145,140],[94,201,98],[253,231,37]];
+const VIRIDIS=[[68,1,84],[59,82,139],[33,145,140],[94,201,98],[253,231,37]];   // model
+const MAGMA  =[[13,8,38],[81,18,124],[183,55,121],[252,137,97],[252,253,191]]; // human recog
 function ramp(stops,t){t=Math.max(0,Math.min(1,t));const s=t*(stops.length-1);const i=Math.floor(s),f=s-i;
   const a=stops[i],b=stops[Math.min(i+1,stops.length-1)];
   return `rgb(${Math.round(lerp(a[0],b[0],f))},${Math.round(lerp(a[1],b[1],f))},${Math.round(lerp(a[2],b[2],f))})`;}
@@ -138,8 +157,6 @@ function hsl(h,s,l){return `hsl(${h},${s}%,${l}%)`;}
 // ---------- view transform ----------
 let scale=1, tx=0, ty=0, fit={s:1,ox:0,oy:0};
 function worldToScreen(x,y){return [ (x*fit.s+fit.ox)*scale+tx, (y*fit.s+fit.oy)*scale+ty ];}
-function screenToWorldX(px){return ((px-tx)/scale - fit.ox)/fit.s;}
-function screenToWorldY(py){return ((py-ty)/scale - fit.oy)/fit.s;}
 
 function resize(){
   const r=cv.parentElement.getBoundingClientRect(), dpr=window.devicePixelRatio||1;
@@ -148,29 +165,32 @@ function resize(){
   computeFit(r.width,r.height); draw();
 }
 function computeFit(w,h){
-  // data x,y already in [0,1000]; fit with padding
   const pad=40, s=Math.min((w-2*pad)/1000,(h-2*pad)/1000);
   fit.s=s; fit.ox=(w-1000*s)/2; fit.oy=(h-1000*s)/2;
 }
 
 // ---------- filters ----------
-const F = { cat:-1, ageMin:2, ageMax:10, recog:0, correctOnly:false };
+const F = { cats:new Set(), ageMin:2, ageMax:10, recogOnly:false, correctOnly:false };
+function catSelected(i){ return F.cats.size===0 || F.cats.has(D.cat[i]); }
 function passes(i){
-  if(F.cat>=0 && D.cat[i]!==F.cat) return false;
+  if(!catSelected(i)) return false;
   const a=D.age[i]; if(a<F.ageMin||a>F.ageMax) return false;
-  if(D.target_prob[i] < F.recog) return false;
+  if(F.recogOnly && D.kid_recog[i]==null) return false;
   if(F.correctOnly && !D.correct[i]) return false;
   return true;
 }
 
 // ---------- color mode ----------
 let colorMode="target_prob";
+const HUMAN_MODES = {kid_recog:1, adult_recog:1};
+// returns a color, or null meaning "no data" (recognition modes only)
 function colorOf(i){
   switch(colorMode){
     case "correct": return D.correct[i] ? "#5ed694" : "#ff6b6b";
     case "target_prob": return ramp(VIRIDIS, D.target_prob[i]);
-    case "log_odds": { // typical range ~ -10..6 -> normalize
-      const t=(D.log_odds[i]+10)/16; return ramp(VIRIDIS,t); }
+    case "log_odds": return ramp(VIRIDIS, (D.log_odds[i]+10)/16);
+    case "kid_recog": { const v=D.kid_recog[i]; return v==null?null:ramp(MAGMA,v); }
+    case "adult_recog": { const v=D.adult_recog[i]; return v==null?null:ramp(MAGMA,v); }
     case "age": return hsl(lerp(220,12,(D.age[i]-2)/8), 70, 58);
     case "cat": return catColor(D.cat[i], D.categories.length);
   }
@@ -181,28 +201,37 @@ let hoverIdx=-1, pinIdx=-1;
 function draw(){
   const w=cv.clientWidth,h=cv.clientHeight;
   ctx.clearRect(0,0,w,h);
-  const rBase = Math.max(1.1, Math.min(3.4, 1.0*scale));
-  const r = rBase;
-  ctx.globalAlpha = 0.82;
+  const r = Math.max(1.1, Math.min(3.6, 1.0*scale));
+  const human = HUMAN_MODES[colorMode];
+  // pass 1: no-data / unselected points faint (so the lit subset pops in recog modes)
+  if(human){
+    ctx.globalAlpha=0.18; ctx.fillStyle=NODATA;
+    for(let i=0;i<D.n;i++){
+      if(!passes(i) || D[colorMode][i]!=null) continue;
+      const [sx,sy]=worldToScreen(D.x[i],D.y[i]);
+      if(sx<-4||sy<-4||sx>w+4||sy>h+4) continue;
+      ctx.beginPath(); ctx.arc(sx,sy,r,0,6.283); ctx.fill();
+    }
+  }
+  // pass 2: colored points
+  ctx.globalAlpha=0.82;
   for(let i=0;i<D.n;i++){
     if(!passes(i)) continue;
+    const col=colorOf(i); if(col===null) continue;
     const [sx,sy]=worldToScreen(D.x[i],D.y[i]);
     if(sx<-4||sy<-4||sx>w+4||sy>h+4) continue;
-    ctx.fillStyle=colorOf(i);
-    ctx.beginPath(); ctx.arc(sx,sy,r,0,6.283); ctx.fill();
+    ctx.fillStyle=col; ctx.beginPath(); ctx.arc(sx,sy,human?r+0.6:r,0,6.283); ctx.fill();
   }
   ctx.globalAlpha=1;
-  // highlight hovered / pinned
   for(const [idx,col,rad] of [[pinIdx,"#fff",6],[hoverIdx,"#fff",5]]){
     if(idx<0||!passes(idx)) continue;
     const [sx,sy]=worldToScreen(D.x[idx],D.y[idx]);
-    ctx.beginPath(); ctx.arc(sx,sy,rad,0,6.283);
-    ctx.strokeStyle=col; ctx.lineWidth=2; ctx.stroke();
-    ctx.beginPath(); ctx.arc(sx,sy,rad-2,0,6.283); ctx.fillStyle=colorOf(idx); ctx.fill();
+    ctx.beginPath(); ctx.arc(sx,sy,rad,0,6.283); ctx.strokeStyle=col; ctx.lineWidth=2; ctx.stroke();
+    const c=colorOf(idx); ctx.beginPath(); ctx.arc(sx,sy,rad-2,0,6.283); ctx.fillStyle=c||NODATA; ctx.fill();
   }
 }
 
-// ---------- nearest point (linear scan, respects filters) ----------
+// ---------- nearest ----------
 function nearest(px,py){
   let best=-1, bd=14*14;
   for(let i=0;i<D.n;i++){
@@ -216,54 +245,73 @@ function nearest(px,py){
 
 // ---------- detail card ----------
 function fmt(v,d=2){ return (v==null||isNaN(v)) ? "—" : (+v).toFixed(d); }
+function pct(v){ return v==null ? "—" : Math.round(v*100)+"%"; }
 function showCard(i){
-  if(i<0){return;}
+  if(i<0) return;
   card.classList.add("show");
   document.getElementById("cardImg").src = IMG_BASE + D.draw_dir + "/" + D.file[i];
   document.getElementById("cardCat").textContent = D.categories[D.cat[i]] + " · age " + D.age[i];
   const guess = D.guess[i]>=0 ? D.categories[D.guess[i]] : "—";
   const ok = D.correct[i];
+  const kr=D.kid_recog[i], ar=D.adult_recog[i];
+  let human = "";
+  if(kr!=null || ar!=null){
+    human = `<tr class="sec"><td colspan="2">Human recognition</td></tr>
+      <tr><td class="k">kids correct</td><td class="v">${pct(kr)}${kr!=null?` <span class="k">(n=${D.kid_recog_n[i]})</span>`:''}</td></tr>
+      <tr><td class="k">adults correct</td><td class="v">${pct(ar)}${ar!=null?` <span class="k">(n=${D.adult_recog_n[i]})</span>`:''}</td></tr>`;
+  } else {
+    human = `<tr class="sec"><td colspan="2">Human recognition</td></tr>
+      <tr><td class="k" colspan="2">not in recognition games</td></tr>`;
+  }
   document.getElementById("cardTbl").innerHTML = `
+    <tr class="sec"><td colspan="2">Model (CLIP)</td></tr>
     <tr><td class="k">CLIP guess</td><td class="v">${guess} <span class="pill ${ok?'ok':'no'}">${ok?'correct':'wrong'}</span></td></tr>
     <tr><td class="k">target prob</td><td class="v">${fmt(D.target_prob[i],3)}</td></tr>
-    <tr><td class="k">max prob</td><td class="v">${fmt(D.max_prob[i],3)}</td></tr>
     <tr><td class="k">log-odds</td><td class="v">${fmt(D.log_odds[i],2)}</td></tr>
+    ${human}
+    <tr class="sec"><td colspan="2">Drawing</td></tr>
     <tr><td class="k"># strokes</td><td class="v">${D.strokes[i]==null?'—':D.strokes[i]}</td></tr>
-    <tr><td class="k">draw time (s)</td><td class="v">${fmt(D.duration[i],1)}</td></tr>
-    <tr><td class="k">word freq</td><td class="v">${fmt(D.freq[i],1)}</td></tr>`;
+    <tr><td class="k">draw time (s)</td><td class="v">${fmt(D.duration[i],1)}</td></tr>`;
 }
 document.getElementById("close").onclick=()=>{card.classList.remove("show");pinIdx=-1;draw();};
 
 // ---------- legend ----------
 function buildLegend(){
   const el=document.getElementById("legend");
+  const gradLegend=(stops,lo,hi,noData)=>{
+    el.className="group grad";
+    el.innerHTML=`<div class="bar" style="background:linear-gradient(90deg,${stops})"></div>
+      <div class="gradlabels"><span>${lo}</span><span>${hi}</span></div>
+      ${noData?`<div class="row" style="margin-top:6px;"><span class="sw" style="background:${NODATA};opacity:.5"></span>not in recognition games</div>`:''}`;
+  };
   if(colorMode==="correct"){
     el.className="group";
     el.innerHTML=`<div class="row"><span class="sw" style="background:#5ed694"></span>Correctly classified</div>
                   <div class="row"><span class="sw" style="background:#ff6b6b"></span>Misclassified</div>`;
   } else if(colorMode==="cat"){
     el.className="group";
-    el.innerHTML=`<div class="stat">48 categories — hover or filter to identify. Color = category hue.</div>`;
-  } else {
-    el.className="group grad";
-    let g; let lo,hi;
-    if(colorMode==="target_prob"){lo="0 (unrecognizable)";hi="1 (clear)";}
-    else if(colorMode==="log_odds"){lo="low";hi="high";}
-    else {lo="age 2";hi="age 10";}
-    const stops = colorMode==="age"
-      ? `${hsl(220,70,58)}, ${hsl(116,70,58)}, ${hsl(12,70,58)}`
-      : VIRIDIS.map(c=>`rgb(${c[0]},${c[1]},${c[2]})`).join(",");
-    el.innerHTML=`<div class="bar" style="background:linear-gradient(90deg,${stops})"></div>
-                  <div class="gradlabels"><span>${lo}</span><span>${hi}</span></div>`;
+    el.innerHTML=`<div class="stat">48 categories — color = category hue. Use the checklist to isolate groups.</div>`;
+  } else if(colorMode==="target_prob"){
+    gradLegend(VIRIDIS.map(c=>`rgb(${c})`).join(","),"0 (unrecognizable)","1 (clear)",false);
+  } else if(colorMode==="log_odds"){
+    gradLegend(VIRIDIS.map(c=>`rgb(${c})`).join(","),"low","high",false);
+  } else if(colorMode==="kid_recog" || colorMode==="adult_recog"){
+    gradLegend(MAGMA.map(c=>`rgb(${c})`).join(","),"0% recognized","100% recognized",true);
+  } else if(colorMode==="age"){
+    gradLegend(`${hsl(220,70,58)},${hsl(116,70,58)},${hsl(12,70,58)}`,"age 2","age 10",false);
   }
 }
 
 // ---------- visible stat ----------
 function updateStat(){
-  let n=0, corr=0, sp=0;
-  for(let i=0;i<D.n;i++){ if(passes(i)){n++; corr+=D.correct[i]; sp+=D.target_prob[i];} }
-  document.getElementById("visStat").textContent =
-    `${n.toLocaleString()} drawings shown · ${n?Math.round(100*corr/n):0}% CLIP-correct · mean recog ${n?(sp/n).toFixed(2):'—'}`;
+  let n=0, corr=0, sp=0, kr=0, krn=0;
+  for(let i=0;i<D.n;i++){ if(!passes(i))continue; n++; corr+=D.correct[i]; sp+=D.target_prob[i];
+    if(D.kid_recog[i]!=null){kr+=D.kid_recog[i];krn++;} }
+  const human=HUMAN_MODES[colorMode];
+  let s=`${n.toLocaleString()} drawings shown · ${n?Math.round(100*corr/n):0}% CLIP-correct`;
+  if(human) s+=` · ${krn} with kid-recog (mean ${krn?Math.round(100*kr/krn):0}%)`;
+  else s+=` · mean recog ${n?(sp/n).toFixed(2):'—'}`;
+  document.getElementById("visStat").textContent=s;
 }
 
 // ---------- interactions ----------
@@ -275,27 +323,60 @@ cv.addEventListener("mousemove",e=>{
   if(dragging){ const dx=e.clientX-lastX, dy=e.clientY-lastY;
     if(Math.abs(dx)+Math.abs(dy)>2) moved=true;
     tx+=dx; ty+=dy; lastX=e.clientX; lastY=e.clientY; draw(); return; }
-  const h=nearest(px,py);
-  if(h!==hoverIdx){ hoverIdx=h; draw(); if(h>=0 && pinIdx<0) showCard(h); else if(h<0 && pinIdx<0) card.classList.remove("show"); }
+  const hh=nearest(px,py);
+  if(hh!==hoverIdx){ hoverIdx=hh; draw(); if(hh>=0 && pinIdx<0) showCard(hh); else if(hh<0 && pinIdx<0) card.classList.remove("show"); }
 });
 cv.addEventListener("click",e=>{
   if(moved) return;
   const rect=cv.getBoundingClientRect();
-  const h=nearest(e.clientX-rect.left, e.clientY-rect.top);
-  if(h>=0){ pinIdx=h; showCard(h); draw(); }
+  const hh=nearest(e.clientX-rect.left, e.clientY-rect.top);
+  if(hh>=0){ pinIdx=hh; showCard(hh); draw(); }
 });
 cv.addEventListener("wheel",e=>{
   e.preventDefault();
   const rect=cv.getBoundingClientRect(), px=e.clientX-rect.left, py=e.clientY-rect.top;
   const f=Math.exp(-e.deltaY*0.0015);
-  // zoom about cursor
-  tx = px - (px-tx)*f; ty = py - (py-ty)*f; scale*=f;
+  tx=px-(px-tx)*f; ty=py-(py-ty)*f; scale*=f;
   scale=Math.max(0.4,Math.min(60,scale)); draw();
 },{passive:false});
 
+// ---------- category checklist ----------
+function refreshCatUI(){
+  document.querySelectorAll("#catlist input").forEach(cb=>{ cb.checked = F.cats.has(+cb.value); });
+  const sel = F.cats.size;
+  document.getElementById("catCount").textContent = `(${sel===0?'none':sel===D.categories.length?'all':sel} selected)`;
+}
+function buildCatList(){
+  const list=document.getElementById("catlist");
+  D.categories.forEach((c,i)=>{
+    const lab=document.createElement("label");
+    lab.innerHTML=`<input type="checkbox" value="${i}" checked> ${c}`;
+    lab.querySelector("input").onchange=e=>{
+      if(e.target.checked) F.cats.add(i); else F.cats.delete(i);
+      refreshCatUI(); draw(); updateStat();
+    };
+    list.appendChild(lab);
+  });
+  // group quick-chips
+  const chips=document.getElementById("groupChips");
+  Object.keys(D.groups||{}).forEach(label=>{
+    const b=document.createElement("button");
+    b.className="chip"; b.textContent=label; b.dataset.grp=label;
+    chips.appendChild(b);
+  });
+  document.querySelectorAll(".chip").forEach(b=>{
+    b.onclick=()=>{
+      const g=b.dataset.grp;
+      if(g==="__all") D.categories.forEach((_,i)=>F.cats.add(i));
+      else if(g==="__none") F.cats.clear();
+      else { F.cats.clear(); D.groups[g].forEach(i=>F.cats.add(i)); }
+      refreshCatUI(); draw(); updateStat();
+    };
+  });
+}
+
 // ---------- controls ----------
-document.getElementById("colorby").onchange=e=>{colorMode=e.target.value;buildLegend();draw();};
-document.getElementById("catfilter").onchange=e=>{F.cat=+e.target.value;draw();updateStat();};
+document.getElementById("colorby").onchange=e=>{colorMode=e.target.value;buildLegend();draw();updateStat();};
 function syncAge(){
   let lo=+ageMin.value, hi=+ageMax.value; if(lo>hi){[lo,hi]=[hi,lo];}
   F.ageMin=lo;F.ageMax=hi;
@@ -304,26 +385,20 @@ function syncAge(){
 }
 const ageMin=document.getElementById("ageMin"), ageMax=document.getElementById("ageMax");
 ageMin.oninput=syncAge; ageMax.oninput=syncAge;
-document.getElementById("recog").oninput=e=>{
-  F.recog=+e.target.value/100; document.getElementById("recogVal").textContent=`≥ ${e.target.value}%`;
-  draw();updateStat();
-};
-document.getElementById("onlyCorrect").onclick=e=>{
-  F.correctOnly=!F.correctOnly; e.target.style.borderColor=F.correctOnly?"#4ea1ff":""; draw();updateStat();
-};
+document.getElementById("recogOnly").onchange=e=>{F.recogOnly=e.target.checked;draw();updateStat();};
+document.getElementById("onlyCorrect").onchange=e=>{F.correctOnly=e.target.checked;draw();updateStat();};
 document.getElementById("reset").onclick=()=>{scale=1;tx=0;ty=0;resize();};
-
 window.addEventListener("resize",resize);
 
 // ---------- load ----------
 async function load(){
   const res=await fetch("points.json"); D=await res.json();
-  // populate category filter
-  const sel=document.getElementById("catfilter");
-  D.categories.forEach((c,i)=>{const o=document.createElement("option");o.value=i;o.textContent=c;sel.appendChild(o);});
-  document.getElementById("count").textContent=`${D.n.toLocaleString()} drawings · ${D.categories.length} categories · ages 2–10.`;
+  D.categories.forEach((_,i)=>F.cats.add(i));
+  buildCatList(); refreshCatUI();
+  const krn=D.kid_recog.filter(v=>v!=null).length;
+  document.getElementById("count").textContent=`${D.n.toLocaleString()} drawings · ${D.categories.length} categories · ages 2–10. ${krn.toLocaleString()} have kid-recognition data.`;
+  document.getElementById("recogCount").textContent=`(${krn})`;
   document.getElementById("hint").textContent="drag to pan · scroll to zoom · hover for the drawing";
-  // probe image base so it works whether served from repo root or explorer/
   await probeBase();
   buildLegend(); resize(); updateStat();
 }
