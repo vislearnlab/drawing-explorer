@@ -6,8 +6,8 @@
 <title>Children's Drawing Explorer — Stroke by Stroke</title>
 <style>
   :root{
-    --bg:#0f1115; --panel:#161a21; --panel2:#1d222b; --line:#2a3140;
-    --ink:#e8ecf3; --muted:#9aa6b8; --accent:#5b9dff;
+    --bg:#f0f0f0; --panel:#f7f7f7; --panel2:#e8e8e8; --line:#d9d9d9;
+    --ink:#1a1a1a; --muted:#6f6f6f; --accent:#2e6df6; --tile:#ffffff;
   }
   *{box-sizing:border-box}
   html,body{margin:0;height:100%}
@@ -17,94 +17,101 @@
     display:flex; flex-direction:column; height:100vh; overflow:hidden;
   }
   header{
-    padding:12px 18px; border-bottom:1px solid var(--line);
+    padding:11px 18px; border-bottom:1px solid var(--line); background:var(--panel);
     display:flex; align-items:baseline; gap:14px; flex-wrap:wrap;
   }
-  header h1{font-size:16px; margin:0; font-weight:650; letter-spacing:.2px}
+  header h1{font-size:16px; margin:0; font-weight:700; letter-spacing:.2px}
   header .sub{color:var(--muted); font-size:12px}
   header .spacer{flex:1}
-  .main{flex:1; display:flex; min-height:0}
-  /* sidebar */
-  .side{
-    width:230px; flex:none; border-right:1px solid var(--line);
-    background:var(--panel); padding:14px; overflow:auto;
+  .toggle{
+    background:var(--panel2); color:var(--ink); border:1px solid var(--line);
+    border-radius:8px; padding:7px 13px; cursor:pointer; font-size:13px; font-weight:600;
   }
-  .side h2{font-size:11px; text-transform:uppercase; letter-spacing:.08em;
-    color:var(--muted); margin:18px 0 8px}
-  .side h2:first-child{margin-top:0}
-  .cats{display:flex; flex-direction:column; gap:2px}
-  .cat{
-    text-align:left; background:none; border:0; color:var(--ink);
-    padding:6px 9px; border-radius:7px; cursor:pointer; font-size:13px;
-    display:flex; justify-content:space-between; gap:8px;
+  .toggle.on{background:var(--accent); color:#fff; border-color:var(--accent)}
+  /* panels */
+  .panels{flex:1; display:flex; min-height:0}
+  .panel{
+    flex:1; min-width:0; display:flex; flex-direction:column;
+    border-right:1px solid var(--line);
   }
-  .cat:hover{background:var(--panel2)}
-  .cat.active{background:var(--accent); color:#06122a; font-weight:600}
-  .cat .n{color:var(--muted); font-variant-numeric:tabular-nums}
-  .cat.active .n{color:#0a1f47}
-  .control{margin-bottom:10px}
-  .control label{display:block; color:var(--muted); font-size:12px; margin-bottom:4px}
-  select,input[type=range]{width:100%}
-  select{background:var(--panel2); color:var(--ink); border:1px solid var(--line);
-    border-radius:7px; padding:6px 8px}
-  .legend{display:flex; flex-direction:column; gap:3px}
-  .legend .item{
-    display:flex; align-items:center; gap:8px; padding:3px 6px; border-radius:6px;
-    cursor:pointer; font-size:12.5px; user-select:none;
+  .panel:last-child{border-right:0}
+  .panel-head{
+    display:flex; align-items:center; gap:9px; padding:11px 14px 9px;
+    border-bottom:1px solid var(--line);
   }
-  .legend .item:hover{background:var(--panel2)}
-  .legend .item.off{opacity:.32}
-  .legend .sw{width:13px; height:13px; border-radius:3px; flex:none}
-  .legend .item .cn{margin-left:auto; color:var(--muted); font-variant-numeric:tabular-nums}
-  /* grid */
-  .content{flex:1; overflow:auto; padding:16px}
-  .grid{
-    display:grid; gap:12px;
-    grid-template-columns:repeat(auto-fill,minmax(132px,1fr));
+  select{
+    background:#fff; color:var(--ink); border:1px solid var(--line);
+    border-radius:7px; padding:6px 8px; font-size:13px; font-weight:600;
   }
+  select.cat{text-transform:capitalize}
+  .panel-head .count{color:var(--muted); font-size:12px; margin-left:auto;
+    font-variant-numeric:tabular-nums}
+  .panel-head .rm{
+    background:none; border:0; color:var(--muted); font-size:20px; cursor:pointer;
+    line-height:1; padding:0 2px;
+  }
+  .panel-head .rm:hover{color:#d33}
+  .legend{
+    display:flex; flex-wrap:wrap; gap:5px 6px; padding:9px 14px;
+    border-bottom:1px solid var(--line); max-height:96px; overflow:auto;
+  }
+  .chip{
+    display:inline-flex; align-items:center; gap:6px; padding:3px 9px 3px 6px;
+    border-radius:20px; background:#fff; border:1px solid var(--line);
+    cursor:pointer; font-size:12px; user-select:none;
+  }
+  .chip .sw{width:11px; height:11px; border-radius:50%}
+  .chip.off{opacity:.4}
+  .chip .cn{color:var(--muted); font-variant-numeric:tabular-nums}
+  .grid-wrap{flex:1; overflow:auto; padding:14px}
+  .grid{display:grid; gap:11px; grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}
+  .panels.two .grid{grid-template-columns:repeat(auto-fill,minmax(104px,1fr))}
   .card{
-    background:var(--panel); border:1px solid var(--line); border-radius:10px;
-    padding:8px; cursor:pointer; transition:border-color .12s, transform .12s;
+    background:var(--tile); border:1px solid var(--line); border-radius:10px;
+    padding:7px; cursor:pointer; transition:border-color .12s, transform .12s, box-shadow .12s;
   }
-  .card:hover{border-color:var(--accent); transform:translateY(-2px)}
-  .card svg{width:100%; aspect-ratio:1; height:auto; display:block; background:#fff; border-radius:6px}
-  .card .meta{display:flex; justify-content:space-between; margin-top:6px;
-    color:var(--muted); font-size:11.5px}
+  .card:hover{border-color:var(--accent); transform:translateY(-2px);
+    box-shadow:0 4px 14px rgba(0,0,0,.09)}
+  .card svg{width:100%; aspect-ratio:1; height:auto; display:block; background:var(--tile);
+    border-radius:6px; overflow:hidden}
+  .grid svg path{stroke-width:1.7px}
   .empty{color:var(--muted); padding:40px; text-align:center}
   /* modal */
   .overlay{
-    position:fixed; inset:0; background:rgba(6,8,12,.74); backdrop-filter:blur(3px);
+    position:fixed; inset:0; background:rgba(20,22,28,.5); backdrop-filter:blur(2px);
     display:none; align-items:center; justify-content:center; z-index:20; padding:24px;
   }
   .overlay.show{display:flex}
   .modal{
     background:var(--panel); border:1px solid var(--line); border-radius:14px;
-    width:min(760px,96vw); max-height:94vh; overflow:auto; padding:18px 20px;
+    width:min(520px,96vw); max-height:94vh; overflow:auto; padding:18px 20px;
+    box-shadow:0 18px 60px rgba(0,0,0,.25);
   }
   .modal .top{display:flex; align-items:baseline; gap:10px; margin-bottom:12px}
-  .modal .top h3{margin:0; font-size:16px; text-transform:capitalize}
+  .modal .top h3{margin:0; font-size:17px; text-transform:capitalize}
   .modal .top .tag{color:var(--muted); font-size:12.5px}
   .modal .close{margin-left:auto; background:none; border:0; color:var(--muted);
-    font-size:22px; cursor:pointer; line-height:1}
-  .stage{background:#fff; border-radius:10px; display:flex; justify-content:center;
-    width:min(440px,72vh,100%); aspect-ratio:1; margin:0 auto}
-  .stage svg{width:100%; height:100%; display:block}
+    font-size:24px; cursor:pointer; line-height:1}
+  .stage{background:#fff; border:1px solid var(--line); border-radius:10px;
+    width:min(440px,70vh,100%); aspect-ratio:1; margin:0 auto; overflow:hidden}
+  .stage svg{width:100%; height:100%; display:block; overflow:hidden}
+  .stage svg path{stroke-width:2.8px}
   .controls{display:flex; align-items:center; gap:12px; margin:14px 0 6px}
   .btn{
-    background:var(--accent); color:#06122a; border:0; border-radius:8px;
+    background:var(--accent); color:#fff; border:0; border-radius:8px;
     padding:8px 14px; font-weight:650; cursor:pointer; font-size:13px;
   }
-  .btn.ghost{background:var(--panel2); color:var(--ink); border:1px solid var(--line)}
   .scrub{flex:1; display:flex; align-items:center; gap:9px}
   .scrub input{flex:1}
   .scrub .lab{color:var(--muted); font-size:12px; min-width:78px; text-align:right;
     font-variant-numeric:tabular-nums}
   .speed{display:flex; align-items:center; gap:6px; color:var(--muted); font-size:12px}
-  .nowpart{margin-top:4px; color:var(--muted); font-size:13px; min-height:20px}
+  .nowpart{margin-top:6px; color:var(--muted); font-size:13px; min-height:20px}
   .nowpart b{color:var(--ink)}
   .hint{color:var(--muted); font-size:11.5px; margin-top:2px}
   ::-webkit-scrollbar{width:10px;height:10px}
-  ::-webkit-scrollbar-thumb{background:#2a3140;border-radius:8px}
+  ::-webkit-scrollbar-thumb{background:#cfcfcf;border-radius:8px}
+  ::-webkit-scrollbar-thumb:hover{background:#bcbcbc}
 </style>
 </head>
 <body>
@@ -113,27 +120,10 @@
   <span class="sub">stroke&#8209;by&#8209;stroke · part&#8209;labeled · ages 2–10</span>
   <span class="spacer"></span>
   <span class="sub" id="statline"></span>
+  <button class="toggle" id="cmpBtn">⇄ Compare</button>
 </header>
 
-<div class="main">
-  <aside class="side">
-    <h2>Category</h2>
-    <div class="cats" id="cats"></div>
-
-    <h2>Age</h2>
-    <div class="control">
-      <select id="ageSel"><option value="">all ages</option></select>
-    </div>
-
-    <h2>Color = part <span id="legHint"></span></h2>
-    <div class="legend" id="legend"></div>
-  </aside>
-
-  <section class="content">
-    <div class="grid" id="grid"></div>
-    <div class="empty" id="empty" style="display:none">No drawings match.</div>
-  </section>
-</div>
+<div class="panels" id="panels"></div>
 
 <div class="overlay" id="overlay">
   <div class="modal">
@@ -166,288 +156,282 @@
 
 <script>
 const DATA_DIR = "strokes_data";
-// stroke rendering
-const STROKE_W = 2.6;
-// distinct palette for part labels (low-meaning labels fall back to gray)
-const PALETTE = ["#5b9dff","#ff6b6b","#4ecb8d","#ffd166","#c792ea","#ff9f43",
-  "#48cae4","#f4978e","#90be6d","#e07a5f","#b5179e","#06d6a0","#ef476f",
-  "#118ab2","#f7b801","#7cb518","#9b5de5","#00bbf9","#fb5607","#8ac926",
-  "#ff70a6","#3a86ff"];
-const GRAY = "#b9c0cc";
+const PALETTE = ["#2e6df6","#e63946","#2a9d8f","#e9a200","#9b5de5","#f3722c",
+  "#118ab2","#d6336c","#588157","#bc6c25","#b5179e","#06a77d","#ef476f",
+  "#3a0ca3","#c9a200","#4c956c","#7209b7","#0096c7","#d00000","#5c8001",
+  "#ad2e7e","#1d3557"];
+const GRAY = "#9aa0aa";          // strokes whose part label carries no meaning
+const HIDDEN = "#e6e8ec";        // strokes whose part is toggled off
 const LOW_MEANING = new Set(["unintelligible","other","none","?","na","n/a",""]);
 
-let INDEX = null;          // index.json
-let CUR = null;            // {category, drawings, partColor, partCounts}
-let curAge = "";
-let hiddenParts = new Set();
+let INDEX = null, CANVAS_VB = "0 0 424 424";
+const panels = [];                                   // 1 or 2 Panel objects
+let thumb = {items:[], raf:0, io:null, lastTs:0};    // shared thumbnail animator
 
 const $ = s => document.querySelector(s);
+const el = (t,c,h) => { const e=document.createElement(t); if(c)e.className=c; if(h!=null)e.innerHTML=h; return e; };
 
 function partColorMap(ranked){
-  // ranked: [[part,count],...] for this category
-  const map = {}; let pi = 0;
+  const map={}; let pi=0;
   for(const [p] of ranked){
-    if(LOW_MEANING.has(p.toLowerCase())) map[p] = GRAY;
-    else map[p] = PALETTE[pi++ % PALETTE.length];
+    map[p] = LOW_MEANING.has(p.toLowerCase()) ? GRAY : PALETTE[pi++ % PALETTE.length];
   }
   return map;
 }
 
+/* ---------------- init ---------------- */
 async function init(){
   INDEX = await (await fetch(`${DATA_DIR}/index.json`)).json();
-  const cats = $("#cats");
-  for(const c of INDEX.categories){
-    const b = document.createElement("button");
-    b.className = "cat"; b.dataset.cat = c.name;
-    b.innerHTML = `<span>${c.name}</span><span class="n">${c.n}</span>`;
-    b.onclick = () => selectCategory(c.name);
-    cats.appendChild(b);
-  }
+  if(INDEX.canvas) CANVAS_VB = `0 0 ${INDEX.canvas} ${INDEX.canvas}`;
   const total = INDEX.categories.reduce((a,c)=>a+c.n,0);
   $("#statline").textContent = `${INDEX.categories.length} categories · ${total} drawings`;
-  selectCategory(INDEX.categories[0].name);
+  addPanel(INDEX.categories[0].name);
+  thumb.io = new IntersectionObserver(ents=>{
+    for(const e of ents){ if(e.target._it) e.target._it.visible = e.isIntersecting; }
+  }, {rootMargin:"140px"});
+  thumb.raf = requestAnimationFrame(thumbTick);
+  $("#cmpBtn").onclick = toggleCompare;
 }
 
-async function selectCategory(name){
-  document.querySelectorAll(".cat").forEach(b=>b.classList.toggle("active",b.dataset.cat===name));
+function toggleCompare(){
+  if(panels.length === 1){
+    // open a second panel on a different default category
+    const used = panels[0].cat;
+    const other = (INDEX.categories.find(c=>c.name!==used) || INDEX.categories[0]).name;
+    addPanel(other);
+    $("#cmpBtn").classList.add("on");
+  } else {
+    removePanel(panels[panels.length-1]);
+    $("#cmpBtn").classList.remove("on");
+  }
+  $("#panels").classList.toggle("two", panels.length===2);
+  panels.forEach(updateRemoveBtn);
+}
+
+/* ---------------- panel ---------------- */
+function addPanel(catName){
+  const root = el("div","panel");
+  root.innerHTML = `
+    <div class="panel-head">
+      <select class="cat"></select>
+      <select class="age"><option value="">all ages</option></select>
+      <span class="count"></span>
+      <button class="rm" title="remove">&times;</button>
+    </div>
+    <div class="legend"></div>
+    <div class="grid-wrap"><div class="grid"></div><div class="empty" style="display:none">No drawings match.</div></div>`;
+  const p = {root, cat:null, data:null, partColor:{}, hidden:new Set(), age:"", items:[]};
+  const catSel = root.querySelector(".cat");
+  catSel.innerHTML = INDEX.categories.map(c=>`<option value="${c.name}">${c.name}</option>`).join("");
+  catSel.value = catName;
+  catSel.onchange = () => loadCategory(p, catSel.value);
+  root.querySelector(".age").onchange = e => { p.age = e.target.value; renderGrid(p); };
+  root.querySelector(".rm").onclick = () => { if(panels.length>1){ toggleCompare(); } };
+  $("#panels").appendChild(root);
+  panels.push(p);
+  updateRemoveBtn(p);
+  loadCategory(p, catName);
+  return p;
+}
+
+function removePanel(p){
+  thumb.items = thumb.items.filter(it => it.panel !== p);
+  p.root.remove();
+  panels.splice(panels.indexOf(p),1);
+}
+
+function updateRemoveBtn(p){
+  p.root.querySelector(".rm").style.display = panels.length>1 ? "" : "none";
+}
+
+async function loadCategory(p, name){
   const ranked = INDEX.parts[name];
   const data = await (await fetch(`${DATA_DIR}/${name}.json`)).json();
-  CUR = {category:name, drawings:data.drawings, partColor:partColorMap(ranked),
-         partCounts:Object.fromEntries(ranked)};
-  hiddenParts = new Set();
-  buildAgeFilter(name);
-  buildLegend(ranked);
-  renderGrid();
-}
-
-function buildAgeFilter(name){
+  p.cat = name; p.data = data.drawings;
+  p.partColor = partColorMap(ranked); p.hidden = new Set();
+  // age dropdown
   const ages = INDEX.categories.find(c=>c.name===name).ages;
-  const sel = $("#ageSel");
-  sel.innerHTML = `<option value="">all ages</option>` +
+  const ageSel = p.root.querySelector(".age");
+  ageSel.innerHTML = `<option value="">all ages</option>` +
     ages.map(a=>`<option value="${a}">age ${a}</option>`).join("");
-  sel.value = curAge && ages.includes(+curAge) ? curAge : "";
-  curAge = sel.value;
-  sel.onchange = () => { curAge = sel.value; renderGrid(); };
+  if(!ages.includes(+p.age)) p.age = "";
+  ageSel.value = p.age;
+  buildLegend(p, ranked);
+  renderGrid(p);
 }
 
-function buildLegend(ranked){
-  const leg = $("#legend"); leg.innerHTML = "";
-  $("#legHint").textContent = "(click to toggle)";
+function buildLegend(p, ranked){
+  const leg = p.root.querySelector(".legend"); leg.innerHTML = "";
   for(const [part,count] of ranked){
-    const item = document.createElement("div");
-    item.className = "item";
-    item.innerHTML = `<span class="sw" style="background:${CUR.partColor[part]}"></span>`+
-      `<span>${part}</span><span class="cn">${count}</span>`;
-    item.onclick = () => {
-      if(hiddenParts.has(part)) hiddenParts.delete(part); else hiddenParts.add(part);
-      item.classList.toggle("off", hiddenParts.has(part));
-      renderGrid(); // refresh thumbnails to dim hidden parts
+    const chip = el("div","chip",
+      `<span class="sw" style="background:${p.partColor[part]}"></span>${part}<span class="cn">${count}</span>`);
+    chip.onclick = () => {
+      if(p.hidden.has(part)) p.hidden.delete(part); else p.hidden.add(part);
+      chip.classList.toggle("off", p.hidden.has(part));
+      renderGrid(p);
     };
-    leg.appendChild(item);
+    leg.appendChild(chip);
   }
 }
 
-function strokePath(stroke, color, extra=""){
+/* ---------------- rendering ---------------- */
+function strokePath(stroke, color){
   const p = document.createElementNS("http://www.w3.org/2000/svg","path");
   p.setAttribute("d", stroke.d);
   p.setAttribute("fill","none");
   p.setAttribute("stroke", color);
-  p.setAttribute("stroke-width", STROKE_W);
+  p.setAttribute("vector-effect","non-scaling-stroke");   // uniform on-screen width
   p.setAttribute("stroke-linecap","round");
   p.setAttribute("stroke-linejoin","round");
-  if(extra) p.setAttribute("style", extra);
   return p;
 }
 
-function makeThumb(d){
+function makeThumb(p, d){
   const svg = document.createElementNS("http://www.w3.org/2000/svg","svg");
-  svg.setAttribute("viewBox", d.vb.join(" "));
+  svg.setAttribute("viewBox", CANVAS_VB);
   svg.setAttribute("preserveAspectRatio","xMidYMid meet");
   const paths = [];
   for(const s of d.strokes){
-    const hidden = hiddenParts.has(s.p);
-    const color = hidden ? "#eef0f3" : CUR.partColor[s.p] || GRAY;
-    const p = strokePath(s, color);
-    svg.appendChild(p);
-    paths.push(p);
+    const color = p.hidden.has(s.p) ? HIDDEN : (p.partColor[s.p] || GRAY);
+    const path = strokePath(s, color);
+    svg.appendChild(path); paths.push(path);
   }
   return {svg, paths};
 }
 
-function filtered(){
-  return CUR.drawings.filter(d => !curAge || String(d.age)===String(curAge));
+function renderGrid(p){
+  thumb.items = thumb.items.filter(it => it.panel !== p);   // drop old items
+  p.items = [];
+  const grid = p.root.querySelector(".grid"); grid.innerHTML = "";
+  const list = p.data.filter(d => !p.age || String(d.age)===String(p.age));
+  p.root.querySelector(".empty").style.display = list.length ? "none" : "block";
+  p.root.querySelector(".count").textContent = `${list.length} drawings`;
+  for(const d of list){
+    const card = el("div","card");
+    const {svg, paths} = makeThumb(p, d);
+    card.appendChild(svg);
+    card.title = `age ${d.age ?? "?"} · ${d.strokes.length} strokes`;
+    card.onclick = () => openModal(p, d);
+    grid.appendChild(card);
+    const it = {panel:p, el:card, paths, delay:Math.random()*1.2};
+    p.items.push(it); thumb.items.push(it);
+  }
+  primeItems(p.items);
 }
 
-/* ---------- thumbnail autoplay engine (QuickDraw-style looping draw) ---------- */
-const THUMB_SPEED = 650;   // path units drawn per second
-const THUMB_HOLD = 1.6;    // seconds to hold the finished drawing before redraw
-let thumbEngine = {items:[], raf:0, io:null, lastTs:0};
+/* ---------------- thumbnail autoplay (draws once, then stays fixed) ---------------- */
+const THUMB_SPEED = 650;
 
 function applyProgress(paths, lens, total, frac){
-  const target = frac * total;
-  let acc = 0;
+  const target = frac*total; let acc=0;
   for(let i=0;i<paths.length;i++){
-    const L = lens[i], p = paths[i];
-    if(acc + L <= target){ p.style.strokeDashoffset = 0; acc += L; }
-    else if(acc >= target){ p.style.strokeDashoffset = L; }
-    else { p.style.strokeDashoffset = L * (1 - (target-acc)/L); acc += L; }
+    const L=lens[i], pe=paths[i];
+    if(acc+L<=target){ pe.style.strokeDashoffset=0; acc+=L; }
+    else if(acc>=target){ pe.style.strokeDashoffset=L; }
+    else { pe.style.strokeDashoffset = L*(1-(target-acc)/L); acc+=L; }
+  }
+}
+
+function primeItems(items){
+  for(const it of items){
+    it.lens = it.paths.map(pe => { try { return pe.getTotalLength(); } catch(e){ return 0.001; } });
+    it.total = it.lens.reduce((a,b)=>a+b,0) || 1;
+    it.paths.forEach((pe,i)=>{ const L=it.lens[i]||0.001; pe.style.strokeDasharray=L; pe.style.strokeDashoffset=L; });
+    it.state="delay"; it.clock=0; it.visible=true;
+    it.el._it = it; thumb.io.observe(it.el);
   }
 }
 
 function thumbTick(ts){
-  const e = thumbEngine;
-  if(!e.lastTs) e.lastTs = ts;
-  const dt = Math.min(0.05, (ts - e.lastTs)/1000); e.lastTs = ts;
-  for(const it of e.items){
-    if(!it.visible) continue;
+  if(!thumb.lastTs) thumb.lastTs = ts;
+  const dt = Math.min(0.05,(ts-thumb.lastTs)/1000); thumb.lastTs = ts;
+  for(const it of thumb.items){
+    if(!it.visible || !it.lens) continue;
     it.clock += dt;
-    if(it.state === "delay"){
-      if(it.clock >= it.delay){ it.state = "draw"; it.clock = 0; }
-    } else if(it.state === "draw"){
-      const dur = it.total / THUMB_SPEED;
-      const frac = Math.min(1, it.clock / dur);
+    if(it.state==="delay"){ if(it.clock>=it.delay){ it.state="draw"; it.clock=0; } }
+    else if(it.state==="draw"){
+      const dur = it.total/THUMB_SPEED, frac = Math.min(1, it.clock/dur);
       applyProgress(it.paths, it.lens, it.total, frac);
-      if(frac >= 1){ it.state = "hold"; it.clock = 0; }
-    } else if(it.state === "hold"){
-      if(it.clock >= THUMB_HOLD){ it.state = "draw"; it.clock = 0; }
+      if(frac>=1){ it.state="done"; }   // drawn once; stays fixed (fully drawn)
     }
   }
-  e.raf = requestAnimationFrame(thumbTick);
+  thumb.raf = requestAnimationFrame(thumbTick);
 }
 
-function stopThumbs(){
-  cancelAnimationFrame(thumbEngine.raf);
-  if(thumbEngine.io) thumbEngine.io.disconnect();
-  thumbEngine = {items:[], raf:0, io:null, lastTs:0};
-}
-
-function startThumbs(){
-  // measure lengths now that paths are in the DOM, prime them hidden, then loop
-  const io = new IntersectionObserver(ents => {
-    for(const ent of ents){
-      const it = ent.target._thumb;
-      if(it) it.visible = ent.isIntersecting;
-    }
-  }, {rootMargin:"120px"});
-  for(const it of thumbEngine.items){
-    it.lens = it.paths.map(p => { try { return p.getTotalLength(); } catch(e){ return 0.001; } });
-    it.total = it.lens.reduce((a,b)=>a+b,0) || 1;
-    it.paths.forEach((p,i) => {
-      const L = it.lens[i] || 0.001;
-      p.style.strokeDasharray = L; p.style.strokeDashoffset = L;
-    });
-    it.state = "delay"; it.clock = 0; it.visible = true;
-    it.el._thumb = it; io.observe(it.el);
-  }
-  thumbEngine.io = io;
-  thumbEngine.raf = requestAnimationFrame(thumbTick);
-}
-
-function renderGrid(){
-  stopThumbs();
-  const grid = $("#grid"); grid.innerHTML = "";
-  const list = filtered();
-  $("#empty").style.display = list.length ? "none" : "block";
-  for(const d of list){
-    const card = document.createElement("div");
-    card.className = "card";
-    const {svg, paths} = makeThumb(d);
-    card.appendChild(svg);
-    card.title = `age ${d.age ?? "?"} · ${d.strokes.length} strokes`;
-    card.onclick = () => openModal(d);
-    grid.appendChild(card);
-    thumbEngine.items.push({el:card, paths, delay: Math.random()*1.2});
-  }
-  startThumbs();
-}
-
-/* ---------- playback modal ---------- */
+/* ---------------- playback modal ---------------- */
 let player = null;
 
-function openModal(d){
-  $("#mTitle").textContent = CUR.category;
+function openModal(p, d){
+  $("#mTitle").textContent = p.cat;
   $("#mTag").textContent = `age ${d.age ?? "?"} · ${d.strokes.length} strokes`;
   const svg = $("#mStage");
-  svg.setAttribute("viewBox", d.vb.join(" "));
+  svg.setAttribute("viewBox", CANVAS_VB);
   svg.innerHTML = "";
   const paths = [];
-  d.strokes.forEach((s,i) => {
-    const p = strokePath(s, CUR.partColor[s.p] || GRAY);
-    p.dataset.i = i;
-    p.addEventListener("mousemove", () => showPart(s));
-    svg.appendChild(p);
-    paths.push(p);
+  d.strokes.forEach(s => {
+    const path = strokePath(s, p.partColor[s.p] || GRAY);
+    path.addEventListener("mousemove", () => showPart(p, s));
+    svg.appendChild(path); paths.push(path);
   });
-  // compute lengths now that paths are in the DOM
-  const lens = paths.map(p => { try { return p.getTotalLength(); } catch(e){ return 0; } });
-  paths.forEach((p,i) => {
-    const L = lens[i] || 0.001;
-    p.style.strokeDasharray = L; p.style.strokeDashoffset = L;
-  });
+  const lens = paths.map(pe => { try { return pe.getTotalLength(); } catch(e){ return 0.001; } });
+  paths.forEach((pe,i)=>{ const L=lens[i]||0.001; pe.style.strokeDasharray=L; pe.style.strokeDashoffset=L; });
 
-  player = {d, paths, lens, total:lens.reduce((a,b)=>a+b,0)||1, t:0, playing:false, raf:0, last:0};
+  player = {p, d, paths, lens, total:lens.reduce((a,b)=>a+b,0)||1, t:0, playing:false, raf:0, last:0};
   $("#overlay").classList.add("show");
-  setSpeedHandlers();
-  // autoplay: draw it from the first stroke
+  setHandlers();
   setProgress(0);
   player.playing = true; player.last = 0;
   $("#playBtn").textContent = "❚❚ Pause";
   player.raf = requestAnimationFrame(tick);
 }
 
-function showPart(s){
-  const el = $("#nowpart");
-  if(!s){ el.innerHTML = ""; return; }
+function showPart(p, s){
+  const e = $("#nowpart");
+  if(!s){ e.innerHTML=""; return; }
   const [agreed,total] = s.a || [];
-  const agree = (agreed!=null && total!=null) ? ` · ${agreed} of ${total} annotators agreed` : "";
-  el.innerHTML = `Part: <b style="color:${CUR.partColor[s.p]||GRAY}">${s.p}</b>${agree}`;
+  const ag = (agreed!=null && total!=null) ? ` · ${agreed} of ${total} annotators agreed` : "";
+  e.innerHTML = `Part: <b style="color:${p.partColor[s.p]||GRAY}">${s.p}</b>${ag}`;
 }
 
-// progress in [0,1] over cumulative stroke length
 function setProgress(frac){
   if(!player) return;
   player.t = Math.max(0, Math.min(1, frac));
   const target = player.t * player.total;
-  let acc = 0, curIdx = -1;
+  let acc=0, curIdx=-1;
   for(let i=0;i<player.paths.length;i++){
-    const L = player.lens[i];
-    const p = player.paths[i];
-    if(acc + L <= target){ p.style.strokeDashoffset = 0; acc += L; curIdx = i; }
-    else if(acc >= target){ p.style.strokeDashoffset = L; }
-    else { p.style.strokeDashoffset = L * (1 - (target-acc)/L); curIdx = i; acc += L; }
+    const L=player.lens[i], pe=player.paths[i];
+    if(acc+L<=target){ pe.style.strokeDashoffset=0; acc+=L; curIdx=i; }
+    else if(acc>=target){ pe.style.strokeDashoffset=L; }
+    else { pe.style.strokeDashoffset=L*(1-(target-acc)/L); curIdx=i; acc+=L; }
   }
   $("#scrub").value = player.t;
-  const shown = player.paths.filter(p=>parseFloat(p.style.strokeDashoffset)<1).length;
+  const shown = player.paths.filter(pe=>parseFloat(pe.style.strokeDashoffset)<1).length;
   $("#scrubLab").textContent = `${Math.min(shown,player.paths.length)}/${player.paths.length} strokes`;
-  if(curIdx>=0) showPart(player.d.strokes[curIdx]);
+  if(curIdx>=0) showPart(player.p, player.d.strokes[curIdx]);
 }
 
 function tick(ts){
   if(!player || !player.playing) return;
   if(!player.last) player.last = ts;
-  const dt = (ts - player.last)/1000; player.last = ts;
-  const speed = parseFloat($("#speedSel").value);
-  // draw ~420 user-units of path length per second at 1x
-  const advance = (420 * speed * dt) / player.total;
-  let nt = player.t + advance;
-  if(nt >= 1){ nt = 1; player.playing = false; $("#playBtn").textContent = "▶ Play"; }
+  const dt=(ts-player.last)/1000; player.last=ts;
+  const speed=parseFloat($("#speedSel").value);
+  const advance=(420*speed*dt)/player.total;
+  let nt=player.t+advance;
+  if(nt>=1){ nt=1; player.playing=false; $("#playBtn").textContent="▶ Play"; }
   setProgress(nt);
-  if(player.playing) player.raf = requestAnimationFrame(tick);
+  if(player.playing) player.raf=requestAnimationFrame(tick);
 }
 
-function setSpeedHandlers(){
+function setHandlers(){
   $("#playBtn").onclick = () => {
     if(!player) return;
-    if(player.playing){ player.playing=false; cancelAnimationFrame(player.raf);
-      $("#playBtn").textContent="▶ Play"; return; }
-    if(player.t >= 1) setProgress(0);          // replay from start
-    player.playing = true; player.last = 0;
-    $("#playBtn").textContent = "❚❚ Pause";
-    player.raf = requestAnimationFrame(tick);
+    if(player.playing){ player.playing=false; cancelAnimationFrame(player.raf); $("#playBtn").textContent="▶ Play"; return; }
+    if(player.t>=1) setProgress(0);
+    player.playing=true; player.last=0; $("#playBtn").textContent="❚❚ Pause";
+    player.raf=requestAnimationFrame(tick);
   };
   $("#scrub").oninput = e => {
-    if(player){ player.playing=false; cancelAnimationFrame(player.raf);
-      $("#playBtn").textContent="▶ Play"; setProgress(parseFloat(e.target.value)); }
+    if(player){ player.playing=false; cancelAnimationFrame(player.raf); $("#playBtn").textContent="▶ Play"; setProgress(parseFloat(e.target.value)); }
   };
 }
 

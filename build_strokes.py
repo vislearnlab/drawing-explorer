@@ -52,6 +52,12 @@ AGREE = os.environ.get("AGREE_CSV", os.path.join(SCRATCH, "agree_labels.csv"))
 EMPH = os.environ.get("EMPH_CSV", os.path.join(SCRATCH, "part_emphasis.csv"))
 OUT_DIR = os.path.join(HERE, "strokes_data")
 
+# Fixed museum-station tablet canvas (canvas = window.innerWidth*0.8 on the kiosk
+# iPad, so constant across drawings). Confirmed empirically: per-drawing content
+# centers cluster tightly at (~211, ~210), i.e. canvas side ~424. All drawings
+# render in this single square frame so size/position are comparable.
+CANVAS_SIZE = 424
+
 NUM_RE = re.compile(r"-?\d+\.?\d*")
 # the stroke paths use only M (absolute move), l/h/v (relative line/horiz/vert)
 CMD_RE = re.compile(r"([Mlhv])([^Mlhv]*)")
@@ -100,8 +106,13 @@ def load_agree():
                 agreed = int(float(r["n"]))                   # # choosing winning label
             except (ValueError, KeyError):
                 total, agreed = None, None
+            part = (r["roi_labelName"] or "").strip()
+            # single-character labels are stray free-text (e.g. a child who wrote
+            # a word letter-by-letter, annotated t/r/a/i/n) — not object parts.
+            if len(part) == 1:
+                part = "other"
             out[key] = {
-                "part": (r["roi_labelName"] or "").strip(),
+                "part": part,
                 "agree": [agreed, total],   # [#agreed, #total]
                 "age": r.get("age_numeric") or r.get("age", ""),
                 "category": r["category"],
@@ -167,13 +178,7 @@ def main():
         cat = strokes[0][1]["category"]
         age = short_age(strokes[0][1]["age"])
         out_strokes = []
-        bx0 = by0 = float("inf")
-        bx1 = by1 = float("-inf")
         for si, info, svg in strokes:
-            b = path_bounds(svg)
-            if b:
-                bx0, by0 = min(bx0, b[0]), min(by0, b[1])
-                bx1, by1 = max(bx1, b[2]), max(by1, b[3])
             part = info["part"] or "?"
             part_counts[cat][part] += 1
             out_strokes.append({
@@ -181,26 +186,19 @@ def main():
                 "p": part,
                 "a": info["agree"],
             })
-        if bx0 == float("inf"):
+        if not out_strokes:
             continue
-        # centered SQUARE viewBox so every tile is square and the whole drawing
-        # is visible & centered (QuickDraw-style), regardless of canvas overflow.
-        w, h = bx1 - bx0, by1 - by0
-        side = max(w, h, 1.0)
-        pad = 0.07 * side
-        side_p = side + 2 * pad
-        cx, cy = (bx0 + bx1) / 2, (by0 + by1) / 2
-        vb = [round(cx - side_p / 2, 1), round(cy - side_p / 2, 1),
-              round(side_p, 1), round(side_p, 1)]
+        # Drawings are rendered in the FIXED original tablet canvas (see
+        # CANVAS_SIZE) so relative position & size are preserved across drawings
+        # and the scale is uniform; overflow is clipped like the real canvas.
         cats[cat].append({
             "id": fn,
             "age": age,
-            "vb": vb,
             "strokes": out_strokes,
             "emph": emph.get(fn, {}),
         })
 
-    index = {"categories": [], "parts": {}}
+    index = {"canvas": CANVAS_SIZE, "categories": [], "parts": {}}
     for cat in sorted(cats):
         draws = sorted(cats[cat], key=lambda d: (d["age"] or 0, d["id"]))
         with open(os.path.join(OUT_DIR, f"{cat}.json"), "w") as fh:
