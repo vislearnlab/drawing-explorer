@@ -452,6 +452,14 @@ function buildCatList(){
     };
     list.appendChild(lab);
   });
+  // semantic quick-groups from the category attributes (cover all 48 categories)
+  const idxs=D.categories.map((_,i)=>i);
+  D.groups = {
+    "Animate":   idxs.filter(i=>D.cat_animacy[i]===1),
+    "Inanimate": idxs.filter(i=>D.cat_animacy[i]===0),
+    "Big":       idxs.filter(i=>D.cat_size[i]===1),
+    "Small":     idxs.filter(i=>D.cat_size[i]===0),
+  };
   // group quick-chips
   const chips=document.getElementById("groupChips");
   Object.keys(D.groups||{}).forEach(label=>{
