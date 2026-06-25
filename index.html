@@ -84,9 +84,13 @@
         <optgroup label="Human recognition (subset)">
           <option value="kid_recog">Kid recognition accuracy</option>
         </optgroup>
+        <optgroup label="Category attributes">
+          <option value="animacy">Animacy (animate / inanimate)</option>
+          <option value="size">Real-world size (big / small)</option>
+          <option value="cat">Category (hue)</option>
+        </optgroup>
         <optgroup label="Other">
           <option value="age">Producer age</option>
-          <option value="cat">Category</option>
         </optgroup>
       </select>
       <div id="legend" class="group" style="margin-top:11px;"></div>
@@ -114,6 +118,12 @@
     <div class="group">
       <label class="toggle"><input type="checkbox" id="recogOnly" /> Only drawings with kid-recognition data <span id="recogCount" style="color:var(--muted)"></span></label>
       <label class="toggle"><input type="checkbox" id="onlyCorrect" /> CLIP-correct drawings only</label>
+    </div>
+
+    <div class="group">
+      <label class="h">Map overlays</label>
+      <label class="toggle"><input type="checkbox" id="showLabels" checked /> Category labels</label>
+      <label class="toggle"><input type="checkbox" id="showThumbs" checked /> Example drawing per category</label>
     </div>
 
     <div class="group">
@@ -150,8 +160,11 @@ const MAGMA  =[[13,8,38],[81,18,124],[183,55,121],[252,137,97],[252,253,191]]; /
 function ramp(stops,t){t=Math.max(0,Math.min(1,t));const s=t*(stops.length-1);const i=Math.floor(s),f=s-i;
   const a=stops[i],b=stops[Math.min(i+1,stops.length-1)];
   return `rgb(${Math.round(lerp(a[0],b[0],f))},${Math.round(lerp(a[1],b[1],f))},${Math.round(lerp(a[2],b[2],f))})`;}
-function catColor(i,n){return `hsl(${(i*360/n)%360},62%,58%)`;}
+function catColor(i,n,l){return `hsl(${(i*360/n)%360},62%,${l||58}%)`;}
 function hsl(h,s,l){return `hsl(${h},${s}%,${l}%)`;}
+// binary category-attribute palettes
+const ANIMACY_COL = {1:"#ff9f43", 0:"#4ea1ff"};   // animate=orange, inanimate=blue
+const SIZE_COL    = {1:"#c879ff", 0:"#5ed694"};   // big=purple, small=green
 
 // ---------- view transform ----------
 let scale=1, tx=0, ty=0, fit={s:1,ox:0,oy:0};
@@ -169,7 +182,8 @@ function computeFit(w,h){
 }
 
 // ---------- filters ----------
-const F = { cats:new Set(), ageMin:2, ageMax:10, recogOnly:false, correctOnly:false };
+const F = { cats:new Set(), ageMin:2, ageMax:10, recogOnly:false, correctOnly:false,
+            showLabels:true, showThumbs:true };
 function catSelected(i){ return F.cats.size===0 || F.cats.has(D.cat[i]); }
 function passes(i){
   if(!catSelected(i)) return false;
@@ -189,14 +203,72 @@ function colorOf(i){
     case "target_prob": return ramp(VIRIDIS, D.target_prob[i]);
     case "log_odds": return ramp(VIRIDIS, (D.log_odds[i]+10)/16);
     case "kid_recog": { const v=D.kid_recog[i]; return v==null?null:ramp(MAGMA,v); }
+    case "animacy": { const a=D.cat_animacy[D.cat[i]]; return a==null?NODATA:ANIMACY_COL[a]; }
+    case "size": { const s=D.cat_size[D.cat[i]]; return s==null?NODATA:SIZE_COL[s]; }
     case "age": return hsl(lerp(220,12,(D.age[i]-2)/8), 70, 58);
     case "cat": return catColor(D.cat[i], D.categories.length);
+  }
+}
+
+// ---------- map overlays (per-category example drawing at the t-SNE endpoint + label) ----------
+let OV=[], overlaysDirty=true;
+function recomputeOverlays(){
+  OV=[];
+  const n=D.categories.length;
+  const sx=new Float64Array(n), sy=new Float64Array(n), cnt=new Int32Array(n);
+  const best=new Int32Array(n).fill(-1), bestD=new Float64Array(n);
+  for(let i=0;i<D.n;i++){
+    if(!passes(i)) continue;
+    const c=D.cat[i];
+    sx[c]+=D.x[i]; sy[c]+=D.y[i]; cnt[c]++;
+    const dx=D.x[i]-500, dy=D.y[i]-500, dd=dx*dx+dy*dy;   // farthest from map center = arm endpoint
+    if(best[c]<0 || dd>bestD[c]){ bestD[c]=dd; best[c]=i; }
+  }
+  for(let c=0;c<n;c++) if(cnt[c]) OV.push({cat:c, idx:best[c], lx:sx[c]/cnt[c], ly:sy[c]/cnt[c]});
+}
+const imgCache=new Map(); let rafQueued=false;
+function queueDraw(){ if(rafQueued) return; rafQueued=true; requestAnimationFrame(()=>{rafQueued=false;draw();}); }
+function getImg(file){
+  let im=imgCache.get(file);
+  if(im) return im;
+  im=new Image(); im.onload=queueDraw; imgCache.set(file,im);
+  im.src=IMG_BASE+D.draw_dir+"/"+file;
+  return im;
+}
+function roundRect(x,y,w,h,r){ ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+function drawOverlays(){
+  const w=cv.clientWidth, h=cv.clientHeight, nC=D.categories.length;
+  if(F.showThumbs){
+    const s=Math.max(38, Math.min(82, 42*Math.sqrt(scale)));
+    for(const o of OV){
+      const [px,py]=worldToScreen(D.x[o.idx],D.y[o.idx]);
+      if(px<-s||py<-s||px>w+s||py>h+s) continue;
+      const x=px-s/2, y=py-s/2, col=colorOf(o.idx)||catColor(o.cat,nC);
+      ctx.fillStyle="#fff"; roundRect(x,y,s,s,6); ctx.fill();
+      const img=getImg(D.file[o.idx]);
+      if(img.complete && img.naturalWidth){ ctx.save(); roundRect(x,y,s,s,6); ctx.clip(); ctx.drawImage(img,x,y,s,s); ctx.restore(); }
+      ctx.lineWidth=2.5; ctx.strokeStyle=col; roundRect(x,y,s,s,6); ctx.stroke();
+    }
+  }
+  if(F.showLabels){
+    ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.font="600 12.5px -apple-system,Segoe UI,Roboto,sans-serif";
+    for(const o of OV){
+      const [px,py]=worldToScreen(o.lx,o.ly);
+      if(px<0||py<0||px>w||py>h) continue;
+      const t=D.categories[o.cat];
+      ctx.lineWidth=3.5; ctx.strokeStyle="rgba(10,13,18,.92)"; ctx.strokeText(t,px,py);
+      ctx.fillStyle=catColor(o.cat,nC,74); ctx.fillText(t,px,py);
+    }
   }
 }
 
 // ---------- drawing ----------
 let hoverIdx=-1, pinIdx=-1;
 function draw(){
+  if(overlaysDirty){ recomputeOverlays(); overlaysDirty=false; }
   const w=cv.clientWidth,h=cv.clientHeight;
   ctx.clearRect(0,0,w,h);
   const r = Math.max(1.1, Math.min(3.6, 1.0*scale));
@@ -227,6 +299,7 @@ function draw(){
     ctx.beginPath(); ctx.arc(sx,sy,rad,0,6.283); ctx.strokeStyle=col; ctx.lineWidth=2; ctx.stroke();
     const c=colorOf(idx); ctx.beginPath(); ctx.arc(sx,sy,rad-2,0,6.283); ctx.fillStyle=c||NODATA; ctx.fill();
   }
+  drawOverlays();
 }
 
 // ---------- nearest ----------
@@ -248,7 +321,9 @@ function showCard(i){
   if(i<0) return;
   card.classList.add("show");
   document.getElementById("cardImg").src = IMG_BASE + D.draw_dir + "/" + D.file[i];
-  document.getElementById("cardCat").textContent = D.categories[D.cat[i]] + " · age " + D.age[i];
+  const an=D.cat_animacy[D.cat[i]], sz=D.cat_size[D.cat[i]];
+  const attrs=[an==null?null:(an?"animate":"inanimate"), sz==null?null:(sz?"big":"small")].filter(Boolean).join(" · ");
+  document.getElementById("cardCat").textContent = D.categories[D.cat[i]] + " · age " + D.age[i] + (attrs?"  ("+attrs+")":"");
   const guess = D.guess[i]>=0 ? D.categories[D.guess[i]] : "—";
   const ok = D.correct[i];
   const kr=D.kid_recog[i];
@@ -285,6 +360,14 @@ function buildLegend(){
     el.className="group";
     el.innerHTML=`<div class="row"><span class="sw" style="background:#5ed694"></span>Correctly classified</div>
                   <div class="row"><span class="sw" style="background:#ff6b6b"></span>Misclassified</div>`;
+  } else if(colorMode==="animacy"){
+    el.className="group";
+    el.innerHTML=`<div class="row"><span class="sw" style="background:${ANIMACY_COL[1]}"></span>Animate (animals, people)</div>
+                  <div class="row"><span class="sw" style="background:${ANIMACY_COL[0]}"></span>Inanimate (objects)</div>`;
+  } else if(colorMode==="size"){
+    el.className="group";
+    el.innerHTML=`<div class="row"><span class="sw" style="background:${SIZE_COL[1]}"></span>Big (real-world)</div>
+                  <div class="row"><span class="sw" style="background:${SIZE_COL[0]}"></span>Small (real-world)</div>`;
   } else if(colorMode==="cat"){
     el.className="group";
     el.innerHTML=`<div class="stat">48 categories — color = category hue. Use the checklist to isolate groups.</div>`;
@@ -350,7 +433,7 @@ function buildCatList(){
     lab.innerHTML=`<input type="checkbox" value="${i}" checked> ${c}`;
     lab.querySelector("input").onchange=e=>{
       if(e.target.checked) F.cats.add(i); else F.cats.delete(i);
-      refreshCatUI(); draw(); updateStat();
+      overlaysDirty=true; refreshCatUI(); draw(); updateStat();
     };
     list.appendChild(lab);
   });
@@ -367,7 +450,7 @@ function buildCatList(){
       if(g==="__all") D.categories.forEach((_,i)=>F.cats.add(i));
       else if(g==="__none") F.cats.clear();
       else { F.cats.clear(); D.groups[g].forEach(i=>F.cats.add(i)); }
-      refreshCatUI(); draw(); updateStat();
+      overlaysDirty=true; refreshCatUI(); draw(); updateStat();
     };
   });
 }
@@ -378,12 +461,14 @@ function syncAge(){
   let lo=+ageMin.value, hi=+ageMax.value; if(lo>hi){[lo,hi]=[hi,lo];}
   F.ageMin=lo;F.ageMax=hi;
   document.getElementById("ageLabel").textContent = lo===hi?`age ${lo}`:`ages ${lo}–${hi}`;
-  draw();updateStat();
+  overlaysDirty=true; draw();updateStat();
 }
 const ageMin=document.getElementById("ageMin"), ageMax=document.getElementById("ageMax");
 ageMin.oninput=syncAge; ageMax.oninput=syncAge;
-document.getElementById("recogOnly").onchange=e=>{F.recogOnly=e.target.checked;draw();updateStat();};
-document.getElementById("onlyCorrect").onchange=e=>{F.correctOnly=e.target.checked;draw();updateStat();};
+document.getElementById("recogOnly").onchange=e=>{F.recogOnly=e.target.checked;overlaysDirty=true;draw();updateStat();};
+document.getElementById("onlyCorrect").onchange=e=>{F.correctOnly=e.target.checked;overlaysDirty=true;draw();updateStat();};
+document.getElementById("showLabels").onchange=e=>{F.showLabels=e.target.checked;draw();};
+document.getElementById("showThumbs").onchange=e=>{F.showThumbs=e.target.checked;draw();};
 document.getElementById("reset").onclick=()=>{scale=1;tx=0;ty=0;resize();};
 window.addEventListener("resize",resize);
 

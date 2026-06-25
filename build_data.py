@@ -22,7 +22,23 @@ META = os.path.join(ROOT, "data/clip_outputs/fullset/CLIP_METADATA_kid.csv")
 MERGED = os.path.join(ROOT, "data/preprocessed_data/merged_clip_class_and_meta.csv")
 RECOG_DIR = os.path.join(ROOT, "data/recognition_data/behavioral_data")
 RECOG_GAMES = ["animalgame", "biganimalgame", "objectgame", "vehiclegame"]
+ANIMACY = os.path.join(ROOT, "data/drawings/category_metadata/animacy.csv")
 OUT = os.path.join(ROOT, "explorer", "points.json")
+
+
+def norm_cat(c):
+    return c.replace(".", " ").strip().lower()
+
+
+def load_category_meta():
+    """{normalized category: {'animacy':0/1, 'size':0/1, 'vehicle':0/1}}."""
+    out = {}
+    for r in csv.DictReader(open(ANIMACY, encoding="utf-8-sig")):
+        out[norm_cat(r["category"])] = {
+            "animacy": int(r["animacy"]), "size": int(r["size"]),
+            "vehicle": int(r["vehicle"]),
+        }
+    return out
 
 
 def num(v):
@@ -84,6 +100,7 @@ def main():
     merged = {r["filename"]: r for r in csv.DictReader(open(MERGED))}
     recog = load_recognition()
     game_cats = load_game_categories()
+    cat_meta = load_category_meta()
 
     def fname(r):
         return f"{r['label']}_sketch_age{r['age']}_cdm_{r['session']}.png"
@@ -91,6 +108,12 @@ def main():
     # category vocabulary (sorted for stable indices)
     cats = sorted({r["label"] for r in meta})
     cat_idx = {c: i for i, c in enumerate(cats)}
+    # per-category animacy / real-world-size labels (indexed like `cats`)
+    cat_animacy = [cat_meta.get(norm_cat(c), {}).get("animacy") for c in cats]
+    cat_size = [cat_meta.get(norm_cat(c), {}).get("size") for c in cats]
+    missing = [c for c, a in zip(cats, cat_animacy) if a is None]
+    if missing:
+        print("WARNING: no animacy/size label for:", missing)
 
     rows, keep = [], []
     for i, m in enumerate(meta):
@@ -138,6 +161,9 @@ def main():
         "draw_dir": DRAW_REL,
         "categories": cats,
         "n": len(rows),
+        # per-category attributes (indexed like `categories`)
+        "cat_animacy": cat_animacy,   # 1 = animate, 0 = inanimate
+        "cat_size": cat_size,         # 1 = big, 0 = small (real-world size)
         # parallel arrays
         "file": files,
         "x": xy[:, 0].tolist(),
