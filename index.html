@@ -83,7 +83,6 @@
         </optgroup>
         <optgroup label="Human recognition (subset)">
           <option value="kid_recog">Kid recognition accuracy</option>
-          <option value="adult_recog">Adult recognition accuracy</option>
         </optgroup>
         <optgroup label="Other">
           <option value="age">Producer age</option>
@@ -182,7 +181,7 @@ function passes(i){
 
 // ---------- color mode ----------
 let colorMode="target_prob";
-const HUMAN_MODES = {kid_recog:1, adult_recog:1};
+const HUMAN_MODES = {kid_recog:1};
 // returns a color, or null meaning "no data" (recognition modes only)
 function colorOf(i){
   switch(colorMode){
@@ -190,7 +189,6 @@ function colorOf(i){
     case "target_prob": return ramp(VIRIDIS, D.target_prob[i]);
     case "log_odds": return ramp(VIRIDIS, (D.log_odds[i]+10)/16);
     case "kid_recog": { const v=D.kid_recog[i]; return v==null?null:ramp(MAGMA,v); }
-    case "adult_recog": { const v=D.adult_recog[i]; return v==null?null:ramp(MAGMA,v); }
     case "age": return hsl(lerp(220,12,(D.age[i]-2)/8), 70, 58);
     case "cat": return catColor(D.cat[i], D.categories.length);
   }
@@ -253,14 +251,13 @@ function showCard(i){
   document.getElementById("cardCat").textContent = D.categories[D.cat[i]] + " · age " + D.age[i];
   const guess = D.guess[i]>=0 ? D.categories[D.guess[i]] : "—";
   const ok = D.correct[i];
-  const kr=D.kid_recog[i], ar=D.adult_recog[i];
-  let human = "";
-  if(kr!=null || ar!=null){
-    human = `<tr class="sec"><td colspan="2">Human recognition</td></tr>
-      <tr><td class="k">kids correct</td><td class="v">${pct(kr)}${kr!=null?` <span class="k">(n=${D.kid_recog_n[i]})</span>`:''}</td></tr>
-      <tr><td class="k">adults correct</td><td class="v">${pct(ar)}${ar!=null?` <span class="k">(n=${D.adult_recog_n[i]})</span>`:''}</td></tr>`;
+  const kr=D.kid_recog[i];
+  let human;
+  if(kr!=null){
+    human = `<tr class="sec"><td colspan="2">Kid recognition</td></tr>
+      <tr><td class="k">kids correct</td><td class="v">${pct(kr)} <span class="k">(n=${D.kid_recog_n[i]})</span></td></tr>`;
   } else {
-    human = `<tr class="sec"><td colspan="2">Human recognition</td></tr>
+    human = `<tr class="sec"><td colspan="2">Kid recognition</td></tr>
       <tr><td class="k" colspan="2">not in recognition games</td></tr>`;
   }
   document.getElementById("cardTbl").innerHTML = `
@@ -295,7 +292,7 @@ function buildLegend(){
     gradLegend(VIRIDIS.map(c=>`rgb(${c})`).join(","),"0 (unrecognizable)","1 (clear)",false);
   } else if(colorMode==="log_odds"){
     gradLegend(VIRIDIS.map(c=>`rgb(${c})`).join(","),"low","high",false);
-  } else if(colorMode==="kid_recog" || colorMode==="adult_recog"){
+  } else if(colorMode==="kid_recog"){
     gradLegend(MAGMA.map(c=>`rgb(${c})`).join(","),"0% recognized","100% recognized",true);
   } else if(colorMode==="age"){
     gradLegend(`${hsl(220,70,58)},${hsl(116,70,58)},${hsl(12,70,58)}`,"age 2","age 10",false);

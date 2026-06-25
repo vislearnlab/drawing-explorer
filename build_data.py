@@ -34,28 +34,25 @@ def num(v):
 
 
 def load_recognition():
-    """Per-drawing human recognition from the 4 games, split by recognizer type.
+    """Per-drawing kid recognition from the 4 recognition games.
 
-    Returns {basename: {"kid_c","kid_n","ad_c","ad_n"}} where kid = child
-    recognizers (recognizer_age != 'adult') and ad = adult recognizers.
-    Drawings are keyed by PNG basename, which matches the explorer filenames.
+    Returns {basename: {"kid_c","kid_n"}} counting trials by child recognizers
+    (recognizer_age != 'adult'); adult trials are dropped (too few per drawing
+    to report reliably). Keyed by PNG basename, matching the explorer filenames.
     """
     from collections import defaultdict
-    agg = defaultdict(lambda: {"kid_c": 0, "kid_n": 0, "ad_c": 0, "ad_n": 0})
+    agg = defaultdict(lambda: {"kid_c": 0, "kid_n": 0})
     for g in RECOG_GAMES:
         path = os.path.join(RECOG_DIR, g + ".csv")
         for r in csv.DictReader(open(path)):
             if r["producer_age"] == "photo":
                 continue  # skip photo-recognition trials; sketches only
-            base = os.path.basename(r["sketch_path"].strip().strip("[]u'\""))
-            correct = 1 if r["clicked_category"] == r["intended_category"] else 0
-            a = agg[base]
             if r["recognizer_age"] == "adult":
-                a["ad_n"] += 1
-                a["ad_c"] += correct
-            else:
-                a["kid_n"] += 1
-                a["kid_c"] += correct
+                continue  # child recognizers only
+            base = os.path.basename(r["sketch_path"].strip().strip("[]u'\""))
+            a = agg[base]
+            a["kid_n"] += 1
+            a["kid_c"] += 1 if r["clicked_category"] == r["intended_category"] else 0
     return agg
 
 
@@ -123,21 +120,18 @@ def main():
     xy = np.round(xy, 1)
 
     def recog_fields(files):
-        kid, kid_n, ad, ad_n = [], [], [], []
+        # child recognizers only; adult trials were too sparse per-drawing to report
+        kid, kid_n = [], []
         for f in files:
             a = recog.get(f)
             if a and a["kid_n"]:
                 kid.append(round(a["kid_c"] / a["kid_n"], 3)); kid_n.append(a["kid_n"])
             else:
                 kid.append(None); kid_n.append(0)
-            if a and a["ad_n"]:
-                ad.append(round(a["ad_c"] / a["ad_n"], 3)); ad_n.append(a["ad_n"])
-            else:
-                ad.append(None); ad_n.append(0)
-        return kid, kid_n, ad, ad_n
+        return kid, kid_n
 
     files = [r[0] for r in rows]
-    kid_recog, kid_recog_n, adult_recog, adult_recog_n = recog_fields(files)
+    kid_recog, kid_recog_n = recog_fields(files)
     print(f"kid-recognition coverage: {sum(1 for v in kid_recog if v is not None)} drawings")
 
     out = {
@@ -158,11 +152,9 @@ def main():
         "strokes": [num(r[2]["num_strokes"]) for r in rows],
         "duration": [round(num(r[2]["draw_duration"]) or 0.0, 1) for r in rows],
         "freq": [round(num(r[2]["drawing_frequency"]) or 0.0, 2) for r in rows],
-        # human recognition (subset of drawings used in the 4 recognition games)
+        # kid recognition (subset of drawings used in the 4 recognition games)
         "kid_recog": kid_recog,       # prop. correct by child recognizers (null if none)
         "kid_recog_n": kid_recog_n,   # number of child-recognizer trials
-        "adult_recog": adult_recog,   # prop. correct by adult recognizers (null if none)
-        "adult_recog_n": adult_recog_n,
         # quick-select category groups (the 4 recognition games)
         "groups": {label: sorted(cat_idx[c] for c in cats if c in cat_idx)
                    for label, cats in game_cats.items()},
