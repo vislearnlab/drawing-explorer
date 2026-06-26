@@ -51,6 +51,12 @@ python3 -m http.server 8000
 - `build_strokes.py` — regenerates `strokes_data/` from the agreed part labels
   and raw per-stroke SVGs.
 
+## License
+
+Licensed under **CC BY-NC 4.0** (free to use with attribution, non-commercial).
+See [`LICENSE`](LICENSE). Please credit the Visual Learning Lab (UC San Diego)
+and cite the dataset paper (above).
+
 ## Rebuilding `points.json`
 
 `build_data.py` expects the source data from the

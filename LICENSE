@@ -1,0 +1,52 @@
+Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)
+==========================================================================
+
+Copyright (c) Visual Learning Lab, UC San Diego.
+
+This work — the explorer web pages, build scripts, and the derived
+stroke/feature data in this repository — is licensed under the Creative Commons
+Attribution-NonCommercial 4.0 International License (CC BY-NC 4.0).
+
+You are free to:
+
+  • Share — copy and redistribute the material in any medium or format.
+  • Adapt — remix, transform, and build upon the material.
+
+Under the following terms:
+
+  • Attribution — You must give appropriate credit (see "How to attribute"
+    below), provide a link to the license, and indicate if changes were made.
+    You may do so in any reasonable manner, but not in any way that suggests the
+    licensor endorses you or your use.
+
+  • NonCommercial — You may not use the material for commercial purposes.
+
+  • No additional restrictions — You may not apply legal terms or technological
+    measures that legally restrict others from doing anything the license
+    permits.
+
+The full legal code of this license is available at:
+
+  https://creativecommons.org/licenses/by-nc/4.0/legalcode
+
+A human-readable summary is available at:
+
+  https://creativecommons.org/licenses/by-nc/4.0/
+
+
+How to attribute
+----------------
+Please credit the Visual Learning Lab (UC San Diego) and cite the dataset paper:
+
+  Long, B., Fan, J. E., Huey, H., Chai, Z., & Frank, M. C. (2024). Parallel
+  developmental changes in children's production and recognition of line
+  drawings of visual concepts. Nature Communications.
+  https://www.nature.com/articles/s41467-023-44529-9
+
+
+Notes
+-----
+The underlying drawings and behavioral data originate from the
+`drawing_production_and_recognition` project (cogtoolslab); see that project for
+the source data and its terms. This repository packages derived data and
+interactive visualizations of it.

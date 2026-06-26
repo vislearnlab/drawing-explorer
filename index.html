@@ -3,163 +3,245 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Children's Drawing Explorers — Visual Learning Lab</title>
-<meta name="description" content="Interactive explorers for a large dataset of children's drawings: CLIP embedding maps, stroke-by-stroke part-labeled playback, and drawings paired with descriptions.">
+<title>Exploring Children's Drawings — Visual Learning Lab</title>
+<meta name="description" content="Interactive explorers for a large dataset of children's drawings: CLIP embedding maps, stroke-by-stroke part-labeled playback, and drawings paired with descriptions. Visual Learning Lab, UC San Diego.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#f0f0f0; --card:#ffffff; --line:#dcdcdc; --ink:#1a1a1a;
-    --muted:#666; --accent:#2e6df6; --accent-soft:#eaf1ff;
+    --bg:#ffffff; --bg-soft:#f4f9fb; --card:#ffffff;
+    --line:#e4edf2; --line-strong:#d3e1e9;
+    --ink:#0f2c43;            /* deep navy ink */
+    --body:#3c576b;           /* muted slate body text */
+    --muted:#6f8597; --muted2:#7990a0;
+    --accent:#0e7aa6;         /* ocean blue */
+    --accent-deep:#0a5a7c;
+    --accent-soft:#e7f3f8;
   }
   *{box-sizing:border-box}
   html,body{margin:0}
   body{
-    background:var(--bg); color:var(--ink);
-    font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-    -webkit-font-smoothing:antialiased;
+    background:var(--bg); color:var(--body);
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
   }
-  .wrap{max-width:980px; margin:0 auto; padding:54px 22px 70px}
-  .eyebrow{color:var(--accent); font-weight:700; font-size:13px; letter-spacing:.08em;
-    text-transform:uppercase; margin:0 0 10px}
-  h1{font-size:38px; line-height:1.12; margin:0 0 14px; letter-spacing:-.5px; font-weight:800}
-  .lede{font-size:17px; color:#333; max-width:680px; margin:0 0 6px}
-  .lede b{color:var(--ink)}
-  .meta-line{color:var(--muted); font-size:14px; margin-top:14px}
+  a{color:var(--accent)}
+  /* top bar */
+  .topbar{
+    display:flex; align-items:center; gap:10px; padding:14px 26px;
+    border-bottom:1px solid var(--line); font-size:14px;
+  }
+  .topbar .brand{display:flex; align-items:center; gap:11px; font-weight:700; color:var(--ink);
+    text-decoration:none}
+  .topbar .brand:hover{color:var(--accent)}
+  .topbar .logo{height:40px; width:auto; display:block}
+  .topbar .brand .uc{color:var(--muted2); font-weight:500}
+  .topbar .spacer{flex:1}
+  .topbar a{text-decoration:none; color:var(--accent); font-weight:600}
+  .topbar a:hover{text-decoration:underline}
+  /* hero */
+  .hero{position:relative; overflow:hidden; background:var(--bg-soft);
+    border-bottom:1px solid var(--line)}
+  .hero-inner{max-width:1000px; margin:0 auto; padding:62px 24px 92px}
+  .eyebrow{color:var(--accent); font-weight:700; font-size:12.5px; letter-spacing:.1em;
+    text-transform:uppercase; margin:0 0 14px}
+  h1{font-size:44px; line-height:1.08; margin:0 0 18px; letter-spacing:-1px;
+    font-weight:800; color:var(--ink); max-width:16ch}
+  .lede{font-size:18px; line-height:1.6; color:var(--body); max-width:680px; margin:0}
+  .lede b{color:var(--ink); font-weight:650}
+  .meta-line{color:var(--muted2); font-size:14px; margin-top:18px; max-width:680px}
+  .wave{position:absolute; left:0; right:0; bottom:-1px; width:100%; height:54px; display:block}
+  /* layout */
+  .wrap{max-width:1000px; margin:0 auto; padding:0 24px}
+  section{padding:48px 0}
+  h2{font-size:13px; text-transform:uppercase; letter-spacing:.09em; color:var(--accent);
+    margin:0 0 20px; font-weight:700}
   /* explorer cards */
-  h2{font-size:14px; text-transform:uppercase; letter-spacing:.07em; color:var(--muted);
-    margin:46px 0 16px; font-weight:700}
-  .cards{display:grid; gap:18px; grid-template-columns:repeat(auto-fit,minmax(265px,1fr))}
+  .cards{display:grid; gap:20px; grid-template-columns:repeat(auto-fit,minmax(270px,1fr))}
   .card{
-    display:flex; flex-direction:column; background:var(--card); border:1px solid var(--line);
-    border-radius:14px; padding:22px 20px 20px; text-decoration:none; color:inherit;
-    transition:transform .14s, box-shadow .14s, border-color .14s;
+    position:relative; display:flex; flex-direction:column; background:var(--card);
+    border:1px solid var(--line-strong); border-radius:16px; padding:24px 22px 22px;
+    text-decoration:none; color:inherit; overflow:hidden;
+    transition:transform .15s, box-shadow .15s, border-color .15s;
   }
-  .card:hover{transform:translateY(-3px); box-shadow:0 12px 30px rgba(0,0,0,.10);
+  .card::before{content:""; position:absolute; top:0; left:0; right:0; height:4px;
+    background:linear-gradient(90deg,var(--accent),#37b0c9)}
+  .card:hover{transform:translateY(-4px); box-shadow:0 16px 38px rgba(14,122,166,.16);
     border-color:var(--accent)}
-  .card.soon{opacity:.92}
-  .ic{width:46px; height:46px; border-radius:11px; background:var(--accent-soft);
-    display:flex; align-items:center; justify-content:center; font-size:24px; margin-bottom:15px}
-  .card h3{margin:0 0 7px; font-size:18px; font-weight:750}
-  .card p{margin:0 0 16px; color:var(--muted); font-size:14px; flex:1}
-  .go{color:var(--accent); font-weight:700; font-size:14px}
-  .card:hover .go{text-decoration:underline}
+  .ic{width:52px; height:52px; border-radius:13px; background:var(--accent-soft);
+    display:flex; align-items:center; justify-content:center; font-size:26px; margin-bottom:16px}
+  .card h3{margin:0 0 8px; font-size:19px; font-weight:750; color:var(--ink)}
+  .card p{margin:0 0 18px; color:var(--body); font-size:14.5px; line-height:1.55; flex:1}
+  .go{color:var(--accent); font-weight:700; font-size:14px; display:inline-flex; gap:6px;
+    align-items:center}
+  .card:hover .go{gap:9px}
   /* cite box */
-  .cite{
-    background:var(--card); border:1px solid var(--line); border-left:4px solid var(--accent);
-    border-radius:12px; padding:18px 20px; margin-top:18px;
-  }
-  .cite .lbl{font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--accent);
-    font-weight:700; margin-bottom:6px}
-  .cite p{margin:0; font-size:14px}
-  .cite a{color:var(--accent)}
+  .cite-sec{background:var(--bg-soft); border-top:1px solid var(--line);
+    border-bottom:1px solid var(--line)}
+  .cite{background:var(--card); border:1px solid var(--line-strong);
+    border-left:4px solid var(--accent); border-radius:14px; padding:20px 22px}
+  .cite .lbl{font-size:12px; text-transform:uppercase; letter-spacing:.07em; color:var(--accent);
+    font-weight:700; margin-bottom:7px}
+  .cite p{margin:0; font-size:14.5px; line-height:1.6; color:var(--ink)}
+  .cite a{font-weight:600}
   /* publications */
-  ul.pubs{list-style:none; padding:0; margin:14px 0 0}
-  ul.pubs li{padding:13px 0; border-top:1px solid var(--line); font-size:14px}
+  ul.pubs{list-style:none; padding:0; margin:0}
+  ul.pubs li{padding:16px 0; border-top:1px solid var(--line); font-size:14.5px; line-height:1.55}
   ul.pubs li:first-child{border-top:0}
-  ul.pubs .t{font-weight:650}
-  ul.pubs .v{color:var(--muted); font-style:italic}
-  ul.pubs .lk{margin-left:8px; font-size:13px; white-space:nowrap}
-  ul.pubs a{color:var(--accent); text-decoration:none}
+  ul.pubs .t{font-weight:650; color:var(--ink)}
+  ul.pubs .a{color:var(--body)}
+  ul.pubs .v{color:var(--muted2); font-style:italic}
+  ul.pubs .lk{font-size:13px; white-space:nowrap}
+  ul.pubs a{text-decoration:none; font-weight:600}
   ul.pubs a:hover{text-decoration:underline}
-  footer{margin-top:50px; padding-top:22px; border-top:1px solid var(--line);
-    color:var(--muted); font-size:13px; display:flex; gap:18px; flex-wrap:wrap}
-  footer a{color:var(--accent); text-decoration:none}
-  footer a:hover{text-decoration:underline}
-  @media(max-width:540px){ h1{font-size:30px} .wrap{padding:38px 18px 56px} }
+  footer{border-top:1px solid var(--line); background:var(--bg-soft)}
+  .foot-inner{max-width:1000px; margin:0 auto; padding:26px 24px; color:var(--muted2);
+    font-size:13.5px; display:flex; gap:20px; flex-wrap:wrap; align-items:center}
+  .foot-inner .logo-sm{height:34px; width:auto; display:block}
+  .foot-inner a{text-decoration:none; font-weight:600}
+  .foot-inner a:hover{text-decoration:underline}
+  .foot-inner .spacer{flex:1}
+  .foot-inner .lic{color:var(--muted2)}
+  .foot-inner .lic a{color:var(--accent)}
+  @media(max-width:560px){ h1{font-size:33px} .hero-inner{padding:46px 20px 76px} }
 </style>
 </head>
 <body>
-<div class="wrap">
 
-  <p class="eyebrow">Visual Learning Lab</p>
-  <h1>Children's Drawing Explorers</h1>
-  <p class="lede">
-    Interactive tools for exploring a large dataset of <b>children's drawings</b> —
-    tens of thousands of sketches across dozens of object categories, produced by
-    children <b>ages 2–10</b>. Browse how drawings of the same concept change with
-    age, watch them unfold stroke by stroke, and see how a model recognizes them.
-  </p>
-  <p class="meta-line">
-    Data collected through interactive drawing games at the San Jose Children's
-    Discovery Museum and online.
-  </p>
-
-  <h2>Explore the data</h2>
-  <div class="cards">
-
-    <a class="card" href="explorer.html">
-      <div class="ic">🗺️</div>
-      <h3>Explore the full dataset</h3>
-      <p>~37,770 drawings from 48 categories laid out in CLIP embedding space and
-         colored by model recognizability. Filter by category, age, and
-         recognizability; recompute the layout on any selection.</p>
-      <span class="go">Open the map →</span>
+  <div class="topbar">
+    <a class="brand" href="https://www.vislearnlab.org">
+      <img class="logo" src="assets/vll_whale_logo.png" alt="UCSD Visual Learning Lab logo">
+      <span>Visual Learning Lab <span class="uc">· UC San Diego</span></span>
     </a>
-
-    <a class="card" href="strokes.html">
-      <div class="ic">✏️</div>
-      <h3>Stroke by stroke</h3>
-      <p>Watch drawings draw themselves one stroke at a time, with each stroke
-         colored by its semantic part (body, wing, wheel…) and inter-annotator
-         agreement. Compare two categories side by side.</p>
-      <span class="go">Open the player →</span>
-    </a>
-
-    <a class="card" href="https://vislearnlab.github.io/sea-animals-draw-explorer/">
-      <div class="ic">💬</div>
-      <h3>Drawings with descriptions</h3>
-      <p>Children's drawings of sea animals shown alongside the descriptions
-         children gave of what they drew — linking how a concept is drawn to how
-         it is described.</p>
-      <span class="go">Open the explorer →</span>
-    </a>
-
+    <span class="spacer"></span>
+    <a href="https://www.vislearnlab.org">vislearnlab.org →</a>
   </div>
 
-  <div class="cite">
-    <div class="lbl">How to cite the dataset</div>
-    <p>Long, B., Fan, J. E., Huey, H., Chai, Z., &amp; Frank, M. C. (2024).
-       Parallel developmental changes in children's production and recognition of
-       line drawings of visual concepts. <i>Nature Communications</i>.
-       <a href="https://www.nature.com/articles/s41467-023-44529-9">Paper</a> ·
-       <a href="https://osf.io/qymjr/">Data (OSF)</a> ·
-       <a href="https://github.com/cogtoolslab/drawing_production_and_recognition">Code</a></p>
+  <div class="hero">
+    <div class="hero-inner">
+      <p class="eyebrow">Children's Drawing Datasets</p>
+      <h1>Exploring Children's Drawings</h1>
+      <p class="lede">
+        Interactive tools for exploring a large dataset of <b>children's
+        drawings</b> — tens of thousands of sketches across dozens of object
+        categories, produced by children <b>ages 2–10</b>. See how drawings of
+        the same concept change with age, watch them unfold stroke by stroke, and
+        explore how a model recognizes them.
+      </p>
+      <p class="meta-line">
+        Data collected through interactive drawing games at the San Jose
+        Children's Discovery Museum and online.
+      </p>
+    </div>
+    <svg class="wave" viewBox="0 0 1440 54" preserveAspectRatio="none" aria-hidden="true">
+      <path d="M0,32 C240,8 480,8 720,28 C960,48 1200,48 1440,24 L1440,54 L0,54 Z"
+            fill="#ffffff"></path>
+    </svg>
   </div>
 
-  <h2>Key publications</h2>
-  <ul class="pubs">
-    <li>
-      <span class="t">Parallel developmental changes in children's production and recognition of line drawings of visual concepts.</span>
-      Long, Fan, Huey, Chai, &amp; Frank (2024). <span class="v">Nature Communications.</span>
-      <span class="lk"><a href="https://www.nature.com/articles/s41467-023-44529-9">paper</a> · <a href="https://osf.io/qymjr/">data</a></span>
-    </li>
-    <li>
-      <span class="t">Developmental changes in drawing production under different memory demands in a U.S. and Chinese sample.</span>
-      Long, Wang, Christie, Frank, &amp; Fan (2023). <span class="v">Developmental Psychology.</span>
-      <span class="lk"><a href="https://psyarxiv.com/fpebs">preprint</a></span>
-    </li>
-    <li>
-      <span class="t">Developmental changes in the precision of visual concept knowledge.</span>
-      Long, Ma, Tan, Silverman, Frank, &amp; Yeatman (2025). <span class="v">Preprint.</span>
-      <span class="lk"><a href="https://doi.org/10.31234/osf.io/nbj62_v1">preprint</a></span>
-    </li>
-    <li>
-      <span class="t">How games can make behavioural science better.</span>
-      Long, Simson, Buxó-Lugo, Watson, &amp; Mehr (2023). <span class="v">Nature.</span>
-      <span class="lk"><a href="https://www.nature.com/articles/d41586-023-00065-6">paper</a></span>
-    </li>
-    <li>
-      <span class="t">Animacy and object size are reflected in perceptual similarity computations by the preschool years.</span>
-      Long, Moher, Carey, &amp; Konkle (2019). <span class="v">Visual Cognition.</span>
-      <span class="lk"><a href="https://osf.io/d5uzg/">data</a></span>
-    </li>
-  </ul>
+  <div class="wrap">
+    <section>
+      <h2>Explore the data</h2>
+      <div class="cards">
+
+        <a class="card" href="explorer.html">
+          <div class="ic">🗺️</div>
+          <h3>Explore the full dataset</h3>
+          <p>~37,770 drawings from 48 categories laid out in CLIP embedding space
+             and colored by model recognizability. Filter by category, age, and
+             recognizability; recompute the layout on any selection.</p>
+          <span class="go">Open the map →</span>
+        </a>
+
+        <a class="card" href="strokes.html">
+          <div class="ic">✏️</div>
+          <h3>Stroke by stroke</h3>
+          <p>Watch drawings draw themselves one stroke at a time, with each stroke
+             colored by its semantic part (body, ear, wheel…) and inter-annotator
+             agreement. Compare two categories side by side.</p>
+          <span class="go">Open the player →</span>
+        </a>
+
+        <a class="card" href="https://vislearnlab.github.io/sea-animals-draw-explorer/">
+          <div class="ic">💬</div>
+          <h3>Drawings with descriptions</h3>
+          <p>Children's drawings of sea animals shown alongside the descriptions
+             children gave of what they drew — linking how a concept is drawn to
+             how it is described.</p>
+          <span class="go">Open the explorer →</span>
+        </a>
+
+      </div>
+    </section>
+  </div>
+
+  <div class="cite-sec">
+    <div class="wrap">
+      <section>
+        <h2>How to cite the dataset</h2>
+        <div class="cite">
+          <div class="lbl">Dataset paper</div>
+          <p>Long, B., Fan, J. E., Huey, H., Chai, Z., &amp; Frank, M. C. (2024).
+             Parallel developmental changes in children's production and recognition
+             of line drawings of visual concepts. <i>Nature Communications</i>.
+             &nbsp;<a href="https://www.nature.com/articles/s41467-023-44529-9">Paper</a> ·
+             <a href="https://osf.io/qymjr/">Data (OSF)</a> ·
+             <a href="https://github.com/cogtoolslab/drawing_production_and_recognition">Code</a></p>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <section>
+      <h2>Related publications</h2>
+      <ul class="pubs">
+        <li>
+          <span class="t">Parallel developmental changes in children's production and recognition of line drawings of visual concepts.</span>
+          <span class="a"> Long, Fan, Huey, Chai, &amp; Frank (2024).</span>
+          <span class="v">Nature Communications.</span>
+          <span class="lk"><a href="https://www.nature.com/articles/s41467-023-44529-9">paper</a> · <a href="https://osf.io/qymjr/">data</a></span>
+        </li>
+        <li>
+          <span class="t">Developmental changes in drawing production under different memory demands in a U.S. and Chinese sample.</span>
+          <span class="a"> Long, Wang, Christie, Frank, &amp; Fan (2023).</span>
+          <span class="v">Developmental Psychology.</span>
+          <span class="lk"><a href="https://psyarxiv.com/fpebs">preprint</a></span>
+        </li>
+        <li>
+          <span class="t">Developmental changes in the precision of visual concept knowledge.</span>
+          <span class="a"> Long, Ma, Tan, Silverman, Frank, &amp; Yeatman (2025).</span>
+          <span class="v">Preprint.</span>
+          <span class="lk"><a href="https://doi.org/10.31234/osf.io/nbj62_v1">preprint</a></span>
+        </li>
+        <li>
+          <span class="t">How games can make behavioural science better.</span>
+          <span class="a"> Long, Simson, Buxó-Lugo, Watson, &amp; Mehr (2023).</span>
+          <span class="v">Nature.</span>
+          <span class="lk"><a href="https://www.nature.com/articles/d41586-023-00065-6">paper</a></span>
+        </li>
+        <li>
+          <span class="t">Animacy and object size are reflected in perceptual similarity computations by the preschool years.</span>
+          <span class="a"> Long, Moher, Carey, &amp; Konkle (2019).</span>
+          <span class="v">Visual Cognition.</span>
+          <span class="lk"><a href="https://osf.io/d5uzg/">data</a></span>
+        </li>
+      </ul>
+    </section>
+  </div>
 
   <footer>
-    <a href="https://www.vislearnlab.org">Visual Learning Lab</a>
-    <a href="https://www.vislearnlab.org/publications">All publications</a>
-    <a href="https://github.com/vislearnlab/drawing-explorer">Source on GitHub</a>
+    <div class="foot-inner">
+      <img class="logo-sm" src="assets/vll_whale_logo.png" alt="UCSD Visual Learning Lab">
+      <a href="https://www.vislearnlab.org">Visual Learning Lab</a>
+      <a href="https://www.vislearnlab.org/publications">All publications</a>
+      <a href="https://github.com/vislearnlab/drawing-explorer">Source on GitHub</a>
+      <span class="spacer"></span>
+      <span class="lic">© Visual Learning Lab, UC San Diego ·
+        <a href="https://creativecommons.org/licenses/by-nc/4.0/">CC BY-NC 4.0</a></span>
+    </div>
   </footer>
 
-</div>
 </body>
 </html>
