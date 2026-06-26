@@ -130,7 +130,10 @@
         <option value="top">Top 10% — most CLIP-recognizable</option>
         <option value="random">Random 10%</option>
       </select>
-      <div class="stat" id="sketchHint">Renders a 10% subset of the drawings in view.</div>
+      <div class="stat" id="sketchHint">Renders a 10% subset of the drawings in view (max 900).</div>
+      <label class="h" style="margin-top:10px;font-size:11px;">Other drawings as dots
+        <span id="dotVal" style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0;">45%</span></label>
+      <input type="range" id="dotOpacity" min="0" max="1" step="0.05" value="0.45" style="width:100%;" />
     </div>
 
     <div class="group">
@@ -203,7 +206,8 @@ function computeFit(w,h){
 
 // ---------- filters ----------
 const F = { cats:new Set(), ageMin:2, ageMax:10, recogOnly:false, correctOnly:false,
-            showLabels:false, showThumbs:false, showDrawings:false, sketchSample:"top" };
+            showLabels:false, showThumbs:false, showDrawings:false, sketchSample:"top",
+            dotOpacity:0.45 };
 function catSelected(i){ return F.cats.size===0 || F.cats.has(D.cat[i]); }
 let activeSet=null;  // when a custom t-SNE layout is active, only these indices are shown
 function passes(i){
@@ -361,10 +365,11 @@ function drawSketches(w,h,human){
 let hoverIdx=-1, pinIdx=-1;
 // dot passes; `skip` indices are drawn elsewhere (as sketches), `dim` fades the
 // remaining context dots so the sketches on top stand out.
-function drawDots(w,h,human,skip,dim){
+function drawDots(w,h,human,skip,alpha){
+  if(alpha<=0) return;   // dots hidden
   const r = Math.max(1.1, Math.min(3.6, 1.0*scale));
   if(human){   // pass 1: no-data points faint (so the lit subset pops in recog modes)
-    ctx.globalAlpha=dim?0.1:0.18; ctx.fillStyle=NODATA;
+    ctx.globalAlpha=Math.min(0.18, alpha*0.45); ctx.fillStyle=NODATA;
     for(let i=0;i<D.n;i++){
       if(!passes(i) || D[colorMode][i]!=null) continue;
       if(skip && skip.has(i)) continue;
@@ -373,7 +378,7 @@ function drawDots(w,h,human,skip,dim){
       ctx.beginPath(); ctx.arc(sx,sy,r,0,6.283); ctx.fill();
     }
   }
-  ctx.globalAlpha=dim?0.45:0.82;   // pass 2: colored points
+  ctx.globalAlpha=alpha;   // pass 2: colored points
   for(let i=0;i<D.n;i++){
     if(!passes(i)) continue;
     if(skip && skip.has(i)) continue;
@@ -391,10 +396,10 @@ function draw(){
   const human = HUMAN_MODES[colorMode];
   if(F.showDrawings){
     if(sketchDirty) recomputeSketchSet();
-    drawDots(w,h,human,sketchKeep,true);   // remaining drawings shown as faint dots
-    drawSketches(w,h,human);               // the 10% subset shown as sketches
+    drawDots(w,h,human,sketchKeep,F.dotOpacity);   // remaining drawings as dots (adjustable)
+    drawSketches(w,h,human);                        // the 10% subset shown as sketches
   } else {
-    drawDots(w,h,human,null,false);
+    drawDots(w,h,human,null,0.82);
   }
   drawHoverPin();
   drawOverlays();
@@ -590,6 +595,11 @@ ageMin.oninput=syncAge; ageMax.oninput=syncAge;
 document.getElementById("recogOnly").onchange=e=>{F.recogOnly=e.target.checked;overlaysDirty=true; sketchDirty=true;draw();updateStat();};
 document.getElementById("onlyCorrect").onchange=e=>{F.correctOnly=e.target.checked;overlaysDirty=true; sketchDirty=true;draw();updateStat();};
 document.getElementById("showDrawings").onchange=e=>{F.showDrawings=e.target.checked;sketchDirty=true;draw();};
+document.getElementById("dotOpacity").oninput=e=>{
+  F.dotOpacity=+e.target.value;
+  document.getElementById("dotVal").textContent = F.dotOpacity===0 ? "hidden" : Math.round(F.dotOpacity*100)+"%";
+  draw();
+};
 document.getElementById("sketchSample").onchange=e=>{
   F.sketchSample=e.target.value; sketchDirty=true;
   document.getElementById("sketchHint").textContent = e.target.value==="random"
