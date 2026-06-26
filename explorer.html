@@ -23,11 +23,14 @@
   .rangewrap { display:flex; align-items:center; gap:8px; }
   .rangewrap input[type=range] { flex:1; accent-color:var(--accent); }
   .rangewrap .val { font-variant-numeric:tabular-nums; color:var(--muted); min-width:64px; text-align:right; }
-  #legend { display:flex; flex-direction:column; gap:4px; }
-  #legend .row { display:flex; align-items:center; gap:8px; font-size:12px; }
-  #legend .sw { width:13px; height:13px; border-radius:3px; flex:none; }
-  #legend.grad .bar { height:12px; border-radius:4px; flex:1; }
-  #legend .gradlabels { display:flex; justify-content:space-between; color:var(--muted); font-size:11px; }
+  #legend { display:flex; flex-direction:column; gap:5px; }
+  #legend .legtitle { font-weight:700; font-size:12.5px; letter-spacing:.01em; }
+  #legend .legsub { color:var(--muted); font-size:11px; margin-top:-2px; }
+  #legend .row { display:flex; align-items:center; gap:8px; font-size:12.5px; }
+  #legend .sw { width:14px; height:14px; border-radius:3px; flex:none; }
+  #legend.grad .bar { height:20px; border-radius:5px; border:1px solid rgba(255,255,255,.18); }
+  #legend .gradlabels { display:flex; justify-content:space-between; color:var(--muted); font-size:11px;
+    font-variant-numeric:tabular-nums; }
   .stat { color:var(--muted); font-size:11px; margin-top:6px; }
   .btnrow { display:flex; gap:6px; flex-wrap:wrap; }
   .btnrow button { cursor:pointer; width:auto; flex:1; padding:6px 4px; font-size:12px; }
@@ -434,35 +437,43 @@ document.getElementById("close").onclick=()=>{card.classList.remove("show");pinI
 // ---------- legend ----------
 function buildLegend(){
   const el=document.getElementById("legend");
-  const gradLegend=(stops,lo,hi,noData)=>{
+  const title=(t,sub)=>`<div class="legtitle">${t}</div>`+(sub?`<div class="legsub">${sub}</div>`:``);
+  // ticks: array of labels spread evenly across the bar (so use values that sit
+  // at the bar's 0 / mid / 1 positions for the mode's linear domain)
+  const gradLegend=(t,sub,stops,ticks,noData)=>{
     el.className="group grad";
-    el.innerHTML=`<div class="bar" style="background:linear-gradient(90deg,${stops})"></div>
-      <div class="gradlabels"><span>${lo}</span><span>${hi}</span></div>
-      ${noData?`<div class="row" style="margin-top:6px;"><span class="sw" style="background:${NODATA};opacity:.5"></span>not in recognition games</div>`:''}`;
+    el.innerHTML=title(t,sub)
+      +`<div class="bar" style="background:linear-gradient(90deg,${stops})"></div>`
+      +`<div class="gradlabels">${ticks.map(x=>`<span>${x}</span>`).join("")}</div>`
+      +(noData?`<div class="row" style="margin-top:7px;"><span class="sw" style="background:${NODATA};opacity:.6"></span>no data (not in recognition games)</div>`:``);
   };
+  const swatches=(t,sub,rows)=>{
+    el.className="group";
+    el.innerHTML=title(t,sub)+rows.map(([c,l])=>`<div class="row"><span class="sw" style="background:${c}"></span>${l}</div>`).join("");
+  };
+  const V=VIRIDIS.map(c=>`rgb(${c})`).join(","), M=MAGMA.map(c=>`rgb(${c})`).join(",");
   if(colorMode==="correct"){
-    el.className="group";
-    el.innerHTML=`<div class="row"><span class="sw" style="background:#5ed694"></span>Correctly classified</div>
-                  <div class="row"><span class="sw" style="background:#ff6b6b"></span>Misclassified</div>`;
+    swatches("CLIP classification", "did CLIP pick the intended category?",
+      [["#5ed694","Correctly classified"],["#ff6b6b","Misclassified"]]);
   } else if(colorMode==="animacy"){
-    el.className="group";
-    el.innerHTML=`<div class="row"><span class="sw" style="background:${ANIMACY_COL[1]}"></span>Animate (animals, people)</div>
-                  <div class="row"><span class="sw" style="background:${ANIMACY_COL[0]}"></span>Inanimate (objects)</div>`;
+    swatches("Animacy", "category attribute",
+      [[ANIMACY_COL[1],"Animate (animals, people)"],[ANIMACY_COL[0],"Inanimate (objects)"]]);
   } else if(colorMode==="size"){
-    el.className="group";
-    el.innerHTML=`<div class="row"><span class="sw" style="background:${SIZE_COL[1]}"></span>Big (real-world)</div>
-                  <div class="row"><span class="sw" style="background:${SIZE_COL[0]}"></span>Small (real-world)</div>`;
+    swatches("Real-world size", "category attribute",
+      [[SIZE_COL[1],"Big"],[SIZE_COL[0],"Small"]]);
   } else if(colorMode==="cat"){
     el.className="group";
-    el.innerHTML=`<div class="stat">48 categories — color = category hue. Use the checklist to isolate groups.</div>`;
+    el.innerHTML=title("Category","hue = one of 48 categories")
+      +`<div class="stat">Use the checklist to isolate categories or groups.</div>`;
   } else if(colorMode==="target_prob"){
-    gradLegend(VIRIDIS.map(c=>`rgb(${c})`).join(","),"0 (unrecognizable)","1 (clear)",false);
+    gradLegend("CLIP recognizability","P(intended category)", V, ["0","0.5","1"], false);
   } else if(colorMode==="log_odds"){
-    gradLegend(VIRIDIS.map(c=>`rgb(${c})`).join(","),"low","high",false);
+    gradLegend("CLIP log-odds","intended vs. all other categories", V, ["−10","−2","+6"], false);
   } else if(colorMode==="kid_recog"){
-    gradLegend(MAGMA.map(c=>`rgb(${c})`).join(","),"0% recognized","100% recognized",true);
+    gradLegend("Kid recognition accuracy","% of children who guessed right", M, ["0%","50%","100%"], true);
   } else if(colorMode==="age"){
-    gradLegend(`${hsl(220,70,58)},${hsl(116,70,58)},${hsl(12,70,58)}`,"age 2","age 10",false);
+    gradLegend("Producer age","age of the child who drew it",
+      `${hsl(220,70,58)},${hsl(116,70,58)},${hsl(12,70,58)}`, ["2","6","10"], false);
   }
 }
 
