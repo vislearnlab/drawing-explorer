@@ -71,28 +71,38 @@ def round_path(d, ndp=1):
     return NUM_RE.sub(repl, d)
 
 
-def path_bounds(d):
-    """Accurate min/max of a polyline path, honoring relative l/h/v commands."""
+def path_points(d):
+    """Vertices of a polyline path, honoring relative l/h/v commands."""
     cx = cy = 0.0
-    xs, ys = [], []
+    pts = []
     for m in CMD_RE.finditer(d):
         c = m.group(1)
         nums = [float(x) for x in NUM_RE.findall(m.group(2))]
         if c == "M":  # absolute move (may carry extra pairs as implicit lines)
             for j in range(0, len(nums) - 1, 2):
-                cx, cy = nums[j], nums[j + 1]; xs.append(cx); ys.append(cy)
+                cx, cy = nums[j], nums[j + 1]; pts.append((cx, cy))
         elif c == "l":  # relative line
             for j in range(0, len(nums) - 1, 2):
-                cx += nums[j]; cy += nums[j + 1]; xs.append(cx); ys.append(cy)
+                cx += nums[j]; cy += nums[j + 1]; pts.append((cx, cy))
         elif c == "h":  # relative horizontal
             for v in nums:
-                cx += v; xs.append(cx); ys.append(cy)
+                cx += v; pts.append((cx, cy))
         elif c == "v":  # relative vertical
             for v in nums:
-                cy += v; xs.append(cx); ys.append(cy)
-    if not xs:
-        return None
-    return min(xs), min(ys), max(xs), max(ys)
+                cy += v; pts.append((cx, cy))
+    return pts
+
+
+def path_length(d):
+    """Total drawn length of a stroke (units of the 424px canvas)."""
+    pts = path_points(d)
+    return sum(((pts[i][0] - pts[i-1][0]) ** 2 + (pts[i][1] - pts[i-1][1]) ** 2) ** 0.5
+               for i in range(1, len(pts)))
+
+
+# Strokes shorter than this are stray taps / dots (render as artifact specks);
+# drop them so playback doesn't flash tiny marks that get covered by later strokes.
+MIN_STROKE_LEN = 2.5
 
 
 def load_agree():
@@ -179,6 +189,8 @@ def main():
         age = short_age(strokes[0][1]["age"])
         out_strokes = []
         for si, info, svg in strokes:
+            if path_length(svg) < MIN_STROKE_LEN:
+                continue  # stray pen-tap / dot, not a real stroke
             part = info["part"] or "?"
             part_counts[cat][part] += 1
             out_strokes.append({

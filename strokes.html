@@ -167,9 +167,12 @@ const PALETTE = ["#2e6df6","#e63946","#2a9d8f","#e9a200","#9b5de5","#f3722c",
   "#118ab2","#d6336c","#588157","#bc6c25","#b5179e","#06a77d","#ef476f",
   "#3a0ca3","#c9a200","#4c956c","#7209b7","#0096c7","#d00000","#5c8001",
   "#ad2e7e","#1d3557"];
-const GRAY = "#9aa0aa";          // strokes whose part label carries no meaning
-const HIDDEN = "#e6e8ec";        // strokes whose part is toggled off
+const GRAY = "#9aa0aa";          // low-meaning labels (e.g. "other")
+const UNINTEL = "#edeef1";       // "unintelligible" — drawn very faint by default
+const HIDDEN = "#eef0f3";        // a part toggled off in the legend
 const LOW_MEANING = new Set(["unintelligible","other","none","?","na","n/a",""]);
+// playful per-category color overrides {category:{part:color}}
+const CAT_PART_COLORS = { rabbit: { ear: "#0d9488" } };   // rabbit ears are teal :)
 
 let INDEX = null, CANVAS_VB = "0 0 424 424";
 const panels = [];                                   // 1 or 2 Panel objects
@@ -178,11 +181,16 @@ let thumb = {items:[], raf:0, io:null, lastTs:0};    // shared thumbnail animato
 const $ = s => document.querySelector(s);
 const el = (t,c,h) => { const e=document.createElement(t); if(c)e.className=c; if(h!=null)e.innerHTML=h; return e; };
 
-function partColorMap(ranked){
+function partColorMap(ranked, cat){
   const map={}; let pi=0;
   for(const [p] of ranked){
-    map[p] = LOW_MEANING.has(p.toLowerCase()) ? GRAY : PALETTE[pi++ % PALETTE.length];
+    const lp = p.toLowerCase();
+    if(lp === "unintelligible") map[p] = UNINTEL;
+    else if(LOW_MEANING.has(lp)) map[p] = GRAY;
+    else map[p] = PALETTE[pi++ % PALETTE.length];
   }
+  const ov = CAT_PART_COLORS[cat] || {};
+  for(const k of Object.keys(map)){ const o = ov[k.toLowerCase()]; if(o) map[k] = o; }
   return map;
 }
 
@@ -192,7 +200,8 @@ async function init(){
   if(INDEX.canvas) CANVAS_VB = `0 0 ${INDEX.canvas} ${INDEX.canvas}`;
   const total = INDEX.categories.reduce((a,c)=>a+c.n,0);
   $("#statline").textContent = `${INDEX.categories.length} categories · ${total} drawings`;
-  addPanel(INDEX.categories[0].name);
+  const start = INDEX.categories.some(c=>c.name==="rabbit") ? "rabbit" : INDEX.categories[0].name;
+  addPanel(start);
   thumb.io = new IntersectionObserver(ents=>{
     for(const e of ents){ if(e.target._it) e.target._it.visible = e.isIntersecting; }
   }, {rootMargin:"140px"});
@@ -258,7 +267,7 @@ async function loadCategory(p, name){
   const ranked = INDEX.parts[name];
   const data = await (await fetch(`${DATA_DIR}/${name}.json`)).json();
   p.cat = name; p.data = data.drawings;
-  p.partColor = partColorMap(ranked); p.hidden = new Set();
+  p.partColor = partColorMap(ranked, name); p.hidden = new Set();
   // age dropdown
   const ages = INDEX.categories.find(c=>c.name===name).ages;
   const ageSel = p.root.querySelector(".age");
@@ -337,9 +346,11 @@ function applyProgress(paths, lens, total, frac){
   const target = frac*total; let acc=0;
   for(let i=0;i<paths.length;i++){
     const L=lens[i], pe=paths[i];
-    if(acc+L<=target){ pe.style.strokeDashoffset=0; acc+=L; }
-    else if(acc>=target){ pe.style.strokeDashoffset=L; }
-    else { pe.style.strokeDashoffset = L*(1-(target-acc)/L); acc+=L; }
+    // hide not-yet-started strokes entirely — a dash-hidden round-cap path still
+    // renders a stray dot at its start point otherwise.
+    if(acc+L<=target){ pe.style.strokeDashoffset=0; pe.style.visibility="visible"; acc+=L; }
+    else if(acc>=target){ pe.style.strokeDashoffset=L; pe.style.visibility="hidden"; }
+    else { pe.style.strokeDashoffset = L*(1-(target-acc)/L); pe.style.visibility="visible"; acc+=L; }
   }
 }
 
@@ -347,7 +358,7 @@ function primeItems(items){
   for(const it of items){
     it.lens = it.paths.map(pe => { try { return pe.getTotalLength(); } catch(e){ return 0.001; } });
     it.total = it.lens.reduce((a,b)=>a+b,0) || 1;
-    it.paths.forEach((pe,i)=>{ const L=it.lens[i]||0.001; pe.style.strokeDasharray=L; pe.style.strokeDashoffset=L; });
+    it.paths.forEach((pe,i)=>{ const L=it.lens[i]||0.001; pe.style.strokeDasharray=L; pe.style.strokeDashoffset=L; pe.style.visibility="hidden"; });
     it.state="delay"; it.clock=0; it.visible=true;
     it.el._it = it; thumb.io.observe(it.el);
   }
@@ -385,7 +396,7 @@ function openModal(p, d){
     svg.appendChild(path); paths.push(path);
   });
   const lens = paths.map(pe => { try { return pe.getTotalLength(); } catch(e){ return 0.001; } });
-  paths.forEach((pe,i)=>{ const L=lens[i]||0.001; pe.style.strokeDasharray=L; pe.style.strokeDashoffset=L; });
+  paths.forEach((pe,i)=>{ const L=lens[i]||0.001; pe.style.strokeDasharray=L; pe.style.strokeDashoffset=L; pe.style.visibility="hidden"; });
 
   player = {p, d, paths, lens, total:lens.reduce((a,b)=>a+b,0)||1, t:0, playing:false, raf:0, last:0};
   $("#overlay").classList.add("show");
@@ -411,9 +422,9 @@ function setProgress(frac){
   let acc=0, curIdx=-1;
   for(let i=0;i<player.paths.length;i++){
     const L=player.lens[i], pe=player.paths[i];
-    if(acc+L<=target){ pe.style.strokeDashoffset=0; acc+=L; curIdx=i; }
-    else if(acc>=target){ pe.style.strokeDashoffset=L; }
-    else { pe.style.strokeDashoffset=L*(1-(target-acc)/L); curIdx=i; acc+=L; }
+    if(acc+L<=target){ pe.style.strokeDashoffset=0; pe.style.visibility="visible"; acc+=L; curIdx=i; }
+    else if(acc>=target){ pe.style.strokeDashoffset=L; pe.style.visibility="hidden"; }
+    else { pe.style.strokeDashoffset=L*(1-(target-acc)/L); pe.style.visibility="visible"; curIdx=i; acc+=L; }
   }
   $("#scrub").value = player.t;
   const shown = player.paths.filter(pe=>parseFloat(pe.style.strokeDashoffset)<1).length;

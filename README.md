@@ -1,14 +1,23 @@
-# Children's Drawing Explorer
+# Children's Drawing Explorers
 
-An interactive web page for exploring **37,770 children's drawings** (48
-categories, ages 2–10) in CLIP embedding space, colored by model
-recognizability.
+Interactive web pages for exploring a large dataset of **children's drawings**
+(48 categories, ages 2–10).
 
-🔗 **Live page:** https://vislearnlab.github.io/drawing-explorer/
+🔗 **Landing page:** https://vislearnlab.github.io/drawing-explorer/
+
+The site root (`index.html`) is a landing page linking the explorers below;
+it's the single URL to cite. The two in-repo explorers are:
+
+- **`explorer.html`** — the CLIP-embedding map of all ~37,770 drawings, colored
+  by model recognizability (described in *What it shows*, below).
+- **`strokes.html`** — a **stroke-by-stroke** player: drawings render from their
+  per-stroke SVG paths, colored by agreed semantic part, with autoplay and a
+  side-by-side compare mode. Data is built by `build_strokes.py` into
+  `strokes_data/`. See `build_strokes.py`'s docstring for the source inputs.
 
 ![overview](_overview.png)
 
-## What it shows
+## What the CLIP map (`explorer.html`) shows
 
 - Drawings laid out by a 2-D **t-SNE** of the 48-d CLIP per-category probability
   vectors. Each point is one drawing.
@@ -26,15 +35,21 @@ python3 -m http.server 8000
 # open http://127.0.0.1:8000/
 ```
 
-(`index.html` is at the repo root; drawing PNGs live in `drawings/`.)
+(open `http://127.0.0.1:8000/` for the landing page; drawing PNGs live in
+`drawings/`.)
 
 ## Files
 
-- `index.html` — the self-contained explorer (no dependencies, no build step).
-- `points.json` — t-SNE layout + per-drawing CLIP scores consumed by the page.
+- `index.html` — landing page linking the explorers (cite this URL).
+- `explorer.html` — the self-contained CLIP-map explorer (no build step).
+- `strokes.html` — the self-contained stroke-by-stroke player (no build step).
+- `points.json` — t-SNE layout + per-drawing CLIP scores consumed by `explorer.html`.
+- `strokes_data/` — per-category stroke JSON consumed by `strokes.html`.
 - `drawings/` — the 37,770 drawing PNGs (150×150).
 - `build_data.py` — regenerates `points.json` from the source CLIP embeddings
   and recognizability tables (see below).
+- `build_strokes.py` — regenerates `strokes_data/` from the agreed part labels
+  and raw per-stroke SVGs.
 
 ## Rebuilding `points.json`
 
