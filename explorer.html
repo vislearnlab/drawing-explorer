@@ -123,6 +123,7 @@
     <div class="group">
       <label class="h">Points</label>
       <label class="toggle"><input type="checkbox" id="showDrawings" /> Show drawings instead of dots</label>
+      <div class="stat">Renders the top 10% most CLIP-recognizable drawings in view.</div>
     </div>
 
     <div class="group">
@@ -224,7 +225,8 @@ function colorOf(i){
 }
 
 // ---------- map overlays (per-category example drawing at the t-SNE endpoint + label) ----------
-let OV=[], overlaysDirty=true;
+let sketchKeep=new Set(), sketchDirty=true;
+let OV=[], overlaysDirty=true; sketchDirty=true;
 function recomputeOverlays(){
   OV=[];
   const n=D.categories.length, byCat=Array.from({length:n},()=>[]);
@@ -297,16 +299,27 @@ function drawTinted(img,col,x,y,s){
   sctx.globalCompositeOperation="source-over";
   ctx.drawImage(scr,0,0,SCR,SCR,x,y,s,s);
 }
+// sketch mode shows only the top 10% most CLIP-recognizable drawings (by
+// target_prob) among the currently-visible subset — clearer and far lighter
+// than rendering all ~37k images. (sketchKeep/sketchDirty declared near OV.)
+function recomputeSketchSet(){
+  const idx=[];
+  for(let i=0;i<D.n;i++) if(passes(i)) idx.push(i);
+  idx.sort((a,b)=>D.target_prob[b]-D.target_prob[a]);
+  const k=Math.max(1, Math.ceil(idx.length*0.10));
+  sketchKeep=new Set(idx.slice(0,k));
+  sketchDirty=false;
+}
 function drawSketches(w,h,human){
+  if(sketchDirty) recomputeSketchSet();
   const s=Math.max(11,Math.min(86,13*scale));   // sketch size scales with zoom
-  for(let i=0;i<D.n;i++){
-    if(!passes(i)) continue;
+  for(const i of sketchKeep){
     const [sx,sy]=worldToScreen(D.x[i],D.y[i]);
     if(sx<-s||sy<-s||sx>w+s||sy>h+s) continue;
     const img=getImg(D.file[i]);
     if(!(img.complete && img.naturalWidth)) continue;
     const col=colorOf(i);
-    ctx.globalAlpha = col===null ? 0.13 : 0.7;   // no-data sketches stay faint
+    ctx.globalAlpha = col===null ? 0.16 : 0.82;   // no-data sketches stay faint
     drawTinted(img, col||NODATA, sx-s/2, sy-s/2, s);
   }
   ctx.globalAlpha=1;
@@ -484,7 +497,7 @@ function buildCatList(){
     lab.innerHTML=`<input type="checkbox" value="${i}" checked> ${c}`;
     lab.querySelector("input").onchange=e=>{
       if(e.target.checked) F.cats.add(i); else F.cats.delete(i);
-      exitCustom(); overlaysDirty=true; refreshCatUI(); draw(); updateStat();
+      exitCustom(); overlaysDirty=true; sketchDirty=true; refreshCatUI(); draw(); updateStat();
     };
     list.appendChild(lab);
   });
@@ -509,7 +522,7 @@ function buildCatList(){
       if(g==="__all") D.categories.forEach((_,i)=>F.cats.add(i));
       else if(g==="__none") F.cats.clear();
       else { F.cats.clear(); D.groups[g].forEach(i=>F.cats.add(i)); }
-      exitCustom(); overlaysDirty=true; refreshCatUI(); draw(); updateStat();
+      exitCustom(); overlaysDirty=true; sketchDirty=true; refreshCatUI(); draw(); updateStat();
     };
   });
 }
@@ -520,13 +533,13 @@ function syncAge(){
   let lo=+ageMin.value, hi=+ageMax.value; if(lo>hi){[lo,hi]=[hi,lo];}
   F.ageMin=lo;F.ageMax=hi;
   document.getElementById("ageLabel").textContent = lo===hi?`age ${lo}`:`ages ${lo}–${hi}`;
-  overlaysDirty=true; draw();updateStat();
+  overlaysDirty=true; sketchDirty=true; draw();updateStat();
 }
 const ageMin=document.getElementById("ageMin"), ageMax=document.getElementById("ageMax");
 ageMin.oninput=syncAge; ageMax.oninput=syncAge;
-document.getElementById("recogOnly").onchange=e=>{F.recogOnly=e.target.checked;overlaysDirty=true;draw();updateStat();};
-document.getElementById("onlyCorrect").onchange=e=>{F.correctOnly=e.target.checked;overlaysDirty=true;draw();updateStat();};
-document.getElementById("showDrawings").onchange=e=>{F.showDrawings=e.target.checked;draw();};
+document.getElementById("recogOnly").onchange=e=>{F.recogOnly=e.target.checked;overlaysDirty=true; sketchDirty=true;draw();updateStat();};
+document.getElementById("onlyCorrect").onchange=e=>{F.correctOnly=e.target.checked;overlaysDirty=true; sketchDirty=true;draw();updateStat();};
+document.getElementById("showDrawings").onchange=e=>{F.showDrawings=e.target.checked;sketchDirty=true;draw();};
 document.getElementById("showLabels").onchange=e=>{F.showLabels=e.target.checked;draw();};
 document.getElementById("showThumbs").onchange=e=>{F.showThumbs=e.target.checked;draw();};
 document.getElementById("reset").onclick=()=>{scale=1;tx=0;ty=0;resize();};
@@ -640,7 +653,7 @@ async function recompute(){
   const ITERS=300;
   tsneTimer=setInterval(()=>{
     let it=0; for(let s=0;s<3;s++) it=eng.next();   // 3 iters per tick
-    normalizeInto(members, eng.Y); overlaysDirty=true; draw();
+    normalizeInto(members, eng.Y); overlaysDirty=true; sketchDirty=true; draw();
     if(it>=ITERS){ clearInterval(tsneTimer); tsneTimer=null; tog.disabled=false;
       setEl.innerHTML=`Custom t-SNE on <b>${members.length}</b> drawings${sampled?` (random sample of the selection)`:''}.`;
       updateStat(); }
@@ -650,7 +663,7 @@ function exitCustom(){
   if(!activeSet && !tsneTimer) return;
   if(tsneTimer){ clearInterval(tsneTimer); tsneTimer=null; }
   for(let i=0;i<D.n;i++){ D.x[i]=D.gx[i]; D.y[i]=D.gy[i]; }
-  activeSet=null; overlaysDirty=true;
+  activeSet=null; overlaysDirty=true; sketchDirty=true;
   const tog=document.getElementById("recomputeToggle"); tog.checked=false; tog.disabled=false;
   document.getElementById("layoutStat").textContent="Showing the full-dataset t-SNE.";
 }
