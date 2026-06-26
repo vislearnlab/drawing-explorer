@@ -121,6 +121,11 @@
     </div>
 
     <div class="group">
+      <label class="h">Points</label>
+      <label class="toggle"><input type="checkbox" id="showDrawings" /> Show drawings instead of dots</label>
+    </div>
+
+    <div class="group">
       <label class="h">Map overlays</label>
       <label class="toggle"><input type="checkbox" id="showLabels" /> Category labels</label>
       <label class="toggle"><input type="checkbox" id="showThumbs" /> Example drawing per category</label>
@@ -189,7 +194,7 @@ function computeFit(w,h){
 
 // ---------- filters ----------
 const F = { cats:new Set(), ageMin:2, ageMax:10, recogOnly:false, correctOnly:false,
-            showLabels:false, showThumbs:false };
+            showLabels:false, showThumbs:false, showDrawings:false };
 function catSelected(i){ return F.cats.size===0 || F.cats.has(D.cat[i]); }
 let activeSet=null;  // when a custom t-SNE layout is active, only these indices are shown
 function passes(i){
@@ -280,6 +285,33 @@ function drawOverlays(){
   }
 }
 
+// ---------- tinted drawings (ink is opaque, background transparent) ----------
+// reusable offscreen canvas: paint the drawing, then flood its ink with the
+// point's color via "source-in" so each sketch is colored like its dot.
+const SCR=56, scr=document.createElement("canvas"); scr.width=scr.height=SCR;
+const sctx=scr.getContext("2d");
+function drawTinted(img,col,x,y,s){
+  sctx.clearRect(0,0,SCR,SCR);
+  sctx.globalCompositeOperation="source-over"; sctx.drawImage(img,0,0,SCR,SCR);
+  sctx.globalCompositeOperation="source-in";   sctx.fillStyle=col; sctx.fillRect(0,0,SCR,SCR);
+  sctx.globalCompositeOperation="source-over";
+  ctx.drawImage(scr,0,0,SCR,SCR,x,y,s,s);
+}
+function drawSketches(w,h,human){
+  const s=Math.max(11,Math.min(86,13*scale));   // sketch size scales with zoom
+  for(let i=0;i<D.n;i++){
+    if(!passes(i)) continue;
+    const [sx,sy]=worldToScreen(D.x[i],D.y[i]);
+    if(sx<-s||sy<-s||sx>w+s||sy>h+s) continue;
+    const img=getImg(D.file[i]);
+    if(!(img.complete && img.naturalWidth)) continue;
+    const col=colorOf(i);
+    ctx.globalAlpha = col===null ? 0.13 : 0.7;   // no-data sketches stay faint
+    drawTinted(img, col||NODATA, sx-s/2, sy-s/2, s);
+  }
+  ctx.globalAlpha=1;
+}
+
 // ---------- drawing ----------
 let hoverIdx=-1, pinIdx=-1;
 function draw(){
@@ -288,6 +320,7 @@ function draw(){
   ctx.clearRect(0,0,w,h);
   const r = Math.max(1.1, Math.min(3.6, 1.0*scale));
   const human = HUMAN_MODES[colorMode];
+  if(F.showDrawings){ drawSketches(w,h,human); drawHoverPin(); drawOverlays(); return; }
   // pass 1: no-data / unselected points faint (so the lit subset pops in recog modes)
   if(human){
     ctx.globalAlpha=0.18; ctx.fillStyle=NODATA;
@@ -308,13 +341,16 @@ function draw(){
     ctx.fillStyle=col; ctx.beginPath(); ctx.arc(sx,sy,human?r+0.6:r,0,6.283); ctx.fill();
   }
   ctx.globalAlpha=1;
+  drawHoverPin();
+  drawOverlays();
+}
+function drawHoverPin(){
   for(const [idx,col,rad] of [[pinIdx,"#fff",6],[hoverIdx,"#fff",5]]){
     if(idx<0||!passes(idx)) continue;
     const [sx,sy]=worldToScreen(D.x[idx],D.y[idx]);
     ctx.beginPath(); ctx.arc(sx,sy,rad,0,6.283); ctx.strokeStyle=col; ctx.lineWidth=2; ctx.stroke();
     const c=colorOf(idx); ctx.beginPath(); ctx.arc(sx,sy,rad-2,0,6.283); ctx.fillStyle=c||NODATA; ctx.fill();
   }
-  drawOverlays();
 }
 
 // ---------- nearest ----------
@@ -490,6 +526,7 @@ const ageMin=document.getElementById("ageMin"), ageMax=document.getElementById("
 ageMin.oninput=syncAge; ageMax.oninput=syncAge;
 document.getElementById("recogOnly").onchange=e=>{F.recogOnly=e.target.checked;overlaysDirty=true;draw();updateStat();};
 document.getElementById("onlyCorrect").onchange=e=>{F.correctOnly=e.target.checked;overlaysDirty=true;draw();updateStat();};
+document.getElementById("showDrawings").onchange=e=>{F.showDrawings=e.target.checked;draw();};
 document.getElementById("showLabels").onchange=e=>{F.showLabels=e.target.checked;draw();};
 document.getElementById("showThumbs").onchange=e=>{F.showThumbs=e.target.checked;draw();};
 document.getElementById("reset").onclick=()=>{scale=1;tx=0;ty=0;resize();};
