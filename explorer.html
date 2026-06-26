@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Children's Drawing Explorer · CLIP embeddings, model &amp; kid recognition</title>
 <style>
-  :root { --bg:#0e1116; --panel:#171c24; --panel2:#1f2630; --line:#2a323d; --txt:#e6edf3; --muted:#8b97a7; --accent:#4ea1ff; }
+  :root { --bg:#0e1116; --panel:#171c24; --panel2:#1f2630; --line:#2a323d; --txt:#e6edf3; --muted:#8b97a7; --accent:#4ea1ff; --barborder:rgba(255,255,255,.18); --hintbg:rgba(14,17,22,.7); }
+  :root[data-theme="light"] { --bg:#ffffff; --panel:#f6f8fb; --panel2:#eef1f5; --line:#d7dde5; --txt:#1b2330; --muted:#5e6b7b; --accent:#1f6feb; --barborder:rgba(0,0,0,.16); --hintbg:rgba(255,255,255,.82); }
   * { box-sizing:border-box; }
   html,body { margin:0; height:100%; background:var(--bg); color:var(--txt);
     font:13px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
@@ -28,7 +29,8 @@
   #legend .legsub { color:var(--muted); font-size:11px; margin-top:-2px; }
   #legend .row { display:flex; align-items:center; gap:8px; font-size:12.5px; }
   #legend .sw { width:14px; height:14px; border-radius:3px; flex:none; }
-  #legend.grad .bar { height:20px; border-radius:5px; border:1px solid rgba(255,255,255,.18); }
+  #legend.grad .bar { height:20px; border-radius:5px; border:1px solid var(--barborder); }
+  #themeBtn { width:auto; padding:5px 10px; font-size:11px; float:right; margin-top:-2px; }
   #legend .gradlabels { display:flex; justify-content:space-between; color:var(--muted); font-size:11px;
     font-variant-numeric:tabular-nums; }
   .stat { color:var(--muted); font-size:11px; margin-top:6px; }
@@ -49,7 +51,7 @@
   #main { position:relative; overflow:hidden; }
   #cv { display:block; width:100%; height:100%; cursor:crosshair; }
   #hint { position:absolute; left:14px; bottom:12px; color:var(--muted); font-size:11px;
-    background:rgba(14,17,22,.7); padding:5px 9px; border-radius:7px; pointer-events:none; }
+    background:var(--hintbg); padding:5px 9px; border-radius:7px; pointer-events:none; }
   /* detail card */
   #card { position:absolute; top:14px; right:14px; width:230px; background:var(--panel);
     border:1px solid var(--line); border-radius:11px; padding:12px; display:none; }
@@ -73,6 +75,7 @@
 <body>
 <div id="app">
   <aside id="side">
+    <button id="themeBtn" title="Toggle light / dark theme">☀ Light</button>
     <h1>Drawing Explorer</h1>
     <div class="sub">Children's drawings in CLIP embedding space. <span id="count"></span></div>
 
@@ -173,7 +176,16 @@ const IMG_BASE_FALLBACKS = ["../", "./", ""];
 let D = null, IMG_BASE = "../";
 const cv = document.getElementById("cv"), ctx = cv.getContext("2d");
 const card = document.getElementById("card");
-const NODATA = "#39414d";
+// theme-dependent canvas colors (the page chrome is handled by CSS variables)
+const THEMES = {
+  dark:  { nodata:"#39414d", ring:"#ffffff", labelText:"#ffffff", labelOutline:"rgba(10,13,18,.95)", catLabelL:76,
+           viridis:VIRIDIS, magma:MAGMA },
+  // light theme darkens the ramps' bright ends so they stay visible on white
+  light: { nodata:"#c2cad6", ring:"#11161d", labelText:"#11161d", labelOutline:"rgba(255,255,255,.95)", catLabelL:42,
+           viridis:[[94,40,120],[52,92,150],[26,135,128],[60,160,70],[150,150,18]],
+           magma:[[110,45,128],[150,52,122],[198,60,104],[210,105,55],[170,128,45]] },
+};
+let TH = THEMES.dark;
 
 // ---------- color helpers ----------
 function lerp(a,b,t){return a+(b-a)*t;}
@@ -226,11 +238,11 @@ const HUMAN_MODES = {kid_recog:1};
 function colorOf(i){
   switch(colorMode){
     case "correct": return D.correct[i] ? "#5ed694" : "#ff6b6b";
-    case "target_prob": return ramp(VIRIDIS, D.target_prob[i]);
-    case "log_odds": return ramp(VIRIDIS, (D.log_odds[i]+10)/16);
-    case "kid_recog": { const v=D.kid_recog[i]; return v==null?null:ramp(MAGMA,v); }
-    case "animacy": { const a=D.cat_animacy[D.cat[i]]; return a==null?NODATA:ANIMACY_COL[a]; }
-    case "size": { const s=D.cat_size[D.cat[i]]; return s==null?NODATA:SIZE_COL[s]; }
+    case "target_prob": return ramp(TH.viridis, D.target_prob[i]);
+    case "log_odds": return ramp(TH.viridis, (D.log_odds[i]+10)/16);
+    case "kid_recog": { const v=D.kid_recog[i]; return v==null?null:ramp(TH.magma,v); }
+    case "animacy": { const a=D.cat_animacy[D.cat[i]]; return a==null?TH.nodata:ANIMACY_COL[a]; }
+    case "size": { const s=D.cat_size[D.cat[i]]; return s==null?TH.nodata:SIZE_COL[s]; }
     case "age": return hsl(lerp(220,12,(D.age[i]-2)/8), 70, 58);
     case "cat": return catColor(D.cat[i], D.categories.length);
   }
@@ -310,8 +322,8 @@ function drawOverlays(){
     if(showL){
       const t=D.categories[o.cat];
       const ly = showT ? py + s/2 + 4 : py - 6;
-      ctx.lineWidth=3.5; ctx.strokeStyle="rgba(10,13,18,.95)"; ctx.strokeText(t,px,ly);
-      ctx.fillStyle = showT ? "#fff" : catColor(o.cat,nC,76); ctx.fillText(t,px,ly);
+      ctx.lineWidth=3.5; ctx.strokeStyle=TH.labelOutline; ctx.strokeText(t,px,ly);
+      ctx.fillStyle = showT ? TH.labelText : catColor(o.cat,nC,TH.catLabelL); ctx.fillText(t,px,ly);
     }
   }
 }
@@ -356,7 +368,7 @@ function drawSketches(w,h,human){
     if(!(img.complete && img.naturalWidth)) continue;
     const col=colorOf(i);
     ctx.globalAlpha = col===null ? 0.16 : 0.82;   // no-data sketches stay faint
-    drawTinted(img, col||NODATA, sx-s/2, sy-s/2, s);
+    drawTinted(img, col||TH.nodata, sx-s/2, sy-s/2, s);
   }
   ctx.globalAlpha=1;
 }
@@ -369,7 +381,7 @@ function drawDots(w,h,human,skip,alpha){
   if(alpha<=0) return;   // dots hidden
   const r = Math.max(1.1, Math.min(3.6, 1.0*scale));
   if(human){   // pass 1: no-data points faint (so the lit subset pops in recog modes)
-    ctx.globalAlpha=Math.min(0.18, alpha*0.45); ctx.fillStyle=NODATA;
+    ctx.globalAlpha=Math.min(0.18, alpha*0.45); ctx.fillStyle=TH.nodata;
     for(let i=0;i<D.n;i++){
       if(!passes(i) || D[colorMode][i]!=null) continue;
       if(skip && skip.has(i)) continue;
@@ -405,11 +417,11 @@ function draw(){
   drawOverlays();
 }
 function drawHoverPin(){
-  for(const [idx,col,rad] of [[pinIdx,"#fff",6],[hoverIdx,"#fff",5]]){
+  for(const [idx,col,rad] of [[pinIdx,TH.ring,6],[hoverIdx,TH.ring,5]]){
     if(idx<0||!passes(idx)) continue;
     const [sx,sy]=worldToScreen(D.x[idx],D.y[idx]);
     ctx.beginPath(); ctx.arc(sx,sy,rad,0,6.283); ctx.strokeStyle=col; ctx.lineWidth=2; ctx.stroke();
-    const c=colorOf(idx); ctx.beginPath(); ctx.arc(sx,sy,rad-2,0,6.283); ctx.fillStyle=c||NODATA; ctx.fill();
+    const c=colorOf(idx); ctx.beginPath(); ctx.arc(sx,sy,rad-2,0,6.283); ctx.fillStyle=c||TH.nodata; ctx.fill();
   }
 }
 
@@ -469,13 +481,13 @@ function buildLegend(){
     el.innerHTML=title(t,sub)
       +`<div class="bar" style="background:linear-gradient(90deg,${stops})"></div>`
       +`<div class="gradlabels">${ticks.map(x=>`<span>${x}</span>`).join("")}</div>`
-      +(noData?`<div class="row" style="margin-top:7px;"><span class="sw" style="background:${NODATA};opacity:.6"></span>no data (not in recognition games)</div>`:``);
+      +(noData?`<div class="row" style="margin-top:7px;"><span class="sw" style="background:${TH.nodata};opacity:.6"></span>no data (not in recognition games)</div>`:``);
   };
   const swatches=(t,sub,rows)=>{
     el.className="group";
     el.innerHTML=title(t,sub)+rows.map(([c,l])=>`<div class="row"><span class="sw" style="background:${c}"></span>${l}</div>`).join("");
   };
-  const V=VIRIDIS.map(c=>`rgb(${c})`).join(","), M=MAGMA.map(c=>`rgb(${c})`).join(",");
+  const V=TH.viridis.map(c=>`rgb(${c})`).join(","), M=TH.magma.map(c=>`rgb(${c})`).join(",");
   if(colorMode==="correct"){
     swatches("CLIP classification", "did CLIP pick the intended category?",
       [["#5ed694","Correctly classified"],["#ff6b6b","Misclassified"]]);
@@ -595,6 +607,19 @@ ageMin.oninput=syncAge; ageMax.oninput=syncAge;
 document.getElementById("recogOnly").onchange=e=>{F.recogOnly=e.target.checked;overlaysDirty=true; sketchDirty=true;draw();updateStat();};
 document.getElementById("onlyCorrect").onchange=e=>{F.correctOnly=e.target.checked;overlaysDirty=true; sketchDirty=true;draw();updateStat();};
 document.getElementById("showDrawings").onchange=e=>{F.showDrawings=e.target.checked;sketchDirty=true;draw();};
+function applyTheme(name){
+  TH = THEMES[name] || THEMES.dark;
+  document.documentElement.dataset.theme = name;
+  const btn=document.getElementById("themeBtn");
+  btn.textContent = name==="light" ? "🌙 Dark" : "☀ Light";
+  try { localStorage.setItem("explorerTheme", name); } catch(e){}
+  if(typeof draw==="function" && D) { buildLegend(); draw(); }
+}
+document.getElementById("themeBtn").onclick=()=>{
+  applyTheme(document.documentElement.dataset.theme==="light" ? "dark" : "light");
+};
+(function initTheme(){ let t="dark"; try { t=localStorage.getItem("explorerTheme")||"dark"; } catch(e){}
+  applyTheme(t); })();
 document.getElementById("dotOpacity").oninput=e=>{
   F.dotOpacity=+e.target.value;
   document.getElementById("dotVal").textContent = F.dotOpacity===0 ? "hidden" : Math.round(F.dotOpacity*100)+"%";
