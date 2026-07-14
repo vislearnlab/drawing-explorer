@@ -176,6 +176,12 @@ const IMG_BASE_FALLBACKS = ["../", "./", ""];
 let D = null, IMG_BASE = "../";
 const cv = document.getElementById("cv"), ctx = cv.getContext("2d");
 const card = document.getElementById("card");
+
+// ---------- color helpers ----------
+function lerp(a,b,t){return a+(b-a)*t;}
+// low ends brightened so the darkest dots stay visible on the dark background
+const VIRIDIS=[[124,58,148],[64,98,158],[33,150,142],[94,201,98],[253,231,37]];   // model
+const MAGMA  =[[120,55,140],[150,60,140],[200,70,120],[252,150,100],[252,253,191]]; // human recog
 // theme-dependent canvas colors (the page chrome is handled by CSS variables)
 const THEMES = {
   dark:  { nodata:"#39414d", ring:"#ffffff", labelText:"#ffffff", labelOutline:"rgba(10,13,18,.95)", catLabelL:76,
@@ -186,12 +192,6 @@ const THEMES = {
            magma:[[110,45,128],[150,52,122],[198,60,104],[210,105,55],[170,128,45]] },
 };
 let TH = THEMES.dark;
-
-// ---------- color helpers ----------
-function lerp(a,b,t){return a+(b-a)*t;}
-// low ends brightened so the darkest dots stay visible on the dark background
-const VIRIDIS=[[124,58,148],[64,98,158],[33,150,142],[94,201,98],[253,231,37]];   // model
-const MAGMA  =[[120,55,140],[150,60,140],[200,70,120],[252,150,100],[252,253,191]]; // human recog
 function ramp(stops,t){t=Math.max(0,Math.min(1,t));const s=t*(stops.length-1);const i=Math.floor(s),f=s-i;
   const a=stops[i],b=stops[Math.min(i+1,stops.length-1)];
   return `rgb(${Math.round(lerp(a[0],b[0],f))},${Math.round(lerp(a[1],b[1],f))},${Math.round(lerp(a[2],b[2],f))})`;}
