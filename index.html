@@ -37,19 +37,21 @@
   nav a:hover{color:var(--teal-link); text-decoration:none}
   nav a.here{color:var(--teal-link); font-weight:600}
   .site-inner .logo{margin-left:auto}
-  .site-inner .logo img{height:52px; width:auto; display:block}
+  .site-inner .logo img{height:92px; width:auto; display:block}
 
-  /* hero */
-  .hero{background:var(--band); border-bottom:1px solid var(--line)}
-  .hero-inner{max-width:1000px; margin:0 auto; padding:46px 30px 40px}
+  /* hero with a faint field of one recognizable drawing per category behind the text */
+  .hero{position:relative; background:var(--band); border-bottom:1px solid var(--line); overflow:hidden}
+  .hero-bg{position:absolute; inset:0; display:grid; gap:6px; padding:14px;
+    grid-template-columns:repeat(12,1fr); align-content:start;
+    opacity:.12; pointer-events:none;
+    -webkit-mask-image:linear-gradient(180deg,#000 0%,#000 55%,transparent 100%);
+            mask-image:linear-gradient(180deg,#000 0%,#000 55%,transparent 100%);}
+  .hero-bg img{width:100%; aspect-ratio:1; object-fit:contain; filter:grayscale(1)}
+  .hero-inner{position:relative; max-width:1000px; margin:0 auto; padding:52px 30px 46px}
   h1{font-size:34px; line-height:1.2; margin:0 0 18px; color:var(--teal);
      font-weight:600; letter-spacing:.1px}
-  .lede{font-size:17.5px; color:var(--ink); max-width:760px; margin:0 0 12px; font-weight:400}
-  .note{color:var(--muted); font-size:15px; max-width:760px; margin:0}
-
-  /* drawing strip — real sketches from the dataset, like the lab's drawing grid */
-  .strip{display:flex; gap:14px; flex-wrap:wrap; margin-top:30px}
-  .strip img{width:74px; height:74px; object-fit:contain; opacity:.85}
+  .lede{font-size:17.5px; color:var(--ink); max-width:720px; margin:0 0 12px; font-weight:400}
+  .note{color:var(--muted); font-size:15px; max-width:720px; margin:0}
 
   section{padding:40px 0}
   h2{font-size:23px; color:var(--teal); font-weight:600; margin:0 0 18px}
@@ -98,6 +100,56 @@
   </header>
 
   <div class="hero">
+    <div class="hero-bg" aria-hidden="true">
+        <img src="drawings/TV_sketch_age10_cdm_run_v61565467053614.png" alt="">
+        <img src="drawings/airplane_sketch_age2_cdm_run_v31530473790141.png" alt="">
+        <img src="drawings/apple_sketch_age5_cdm_run_v61567980133192.png" alt="">
+        <img src="drawings/bear_sketch_age4_cdm_run_v41546117582224.png" alt="">
+        <img src="drawings/bed_sketch_age10_cdm_run_v61563054263709.png" alt="">
+        <img src="drawings/bee_sketch_age9_cdm_run_v71572383359617.png" alt="">
+        <img src="drawings/bike_sketch_age7_cdm_run_v31532117429606.png" alt="">
+        <img src="drawings/bird_sketch_age10_cdm_run_v31529617799237.png" alt="">
+        <img src="drawings/boat_sketch_age9_cdm_run_v31532556021857.png" alt="">
+        <img src="drawings/book_sketch_age7_cdm_run_v61565903141059.png" alt="">
+        <img src="drawings/bottle_sketch_age2_cdm_run_v51551570430178.png" alt="">
+        <img src="drawings/bowl_sketch_age10_cdm_run_v31531590758359.png" alt="">
+        <img src="drawings/cactus_sketch_age8_cdm_run_v51552080524544.png" alt="">
+        <img src="drawings/camel_sketch_age7_cdm_run_v51558809474892.png" alt="">
+        <img src="drawings/car_sketch_age10_cdm_run_v31535325523602.png" alt="">
+        <img src="drawings/cat_sketch_age4_cdm_run_v41550874228726.png" alt="">
+        <img src="drawings/chair_sketch_age7_cdm_run_v31530558706822.png" alt="">
+        <img src="drawings/clock_sketch_age7_cdm_run_v71572828244720.png" alt="">
+        <img src="drawings/couch_sketch_age2_cdm_run_v31531598283011.png" alt="">
+        <img src="drawings/cow_sketch_age10_cdm_run_v61563054263709.png" alt="">
+        <img src="drawings/cup_sketch_age9_cdm_run_v31534286011625.png" alt="">
+        <img src="drawings/dog_sketch_age9_cdm_run_v31526252261677.png" alt="">
+        <img src="drawings/elephant_sketch_age9_cdm_run_v61566169057530.png" alt="">
+        <img src="drawings/face_sketch_age10_cdm_run_v71576106064145.png" alt="">
+        <img src="drawings/fish_sketch_age3_cdm_run_v31534621863471.png" alt="">
+        <img src="drawings/frog_sketch_age8_cdm_run_v41549148090405.png" alt="">
+        <img src="drawings/hand_sketch_age2_cdm_run_v71574633561568.png" alt="">
+        <img src="drawings/hat_sketch_age10_cdm_run_v51552602908723.png" alt="">
+        <img src="drawings/horse_sketch_age10_cdm_run_v61563054263709.png" alt="">
+        <img src="drawings/house_sketch_age9_cdm_run_v31533596022363.png" alt="">
+        <img src="drawings/ice%20cream_sketch_age10_cdm_run_v61563054263709.png" alt="">
+        <img src="drawings/key_sketch_age9_cdm_run_v41542060810089.png" alt="">
+        <img src="drawings/lamp_sketch_age10_cdm_run_v51554662734819.png" alt="">
+        <img src="drawings/mushroom_sketch_age3_cdm_run_v71571434087794.png" alt="">
+        <img src="drawings/octopus_sketch_age5_cdm_run_v71574714723082.png" alt="">
+        <img src="drawings/person_sketch_age10_cdm_run_v31533938139882.png" alt="">
+        <img src="drawings/phone_sketch_age9_cdm_run_v41542494095803.png" alt="">
+        <img src="drawings/piano_sketch_age10_cdm_run_v71576369252746.png" alt="">
+        <img src="drawings/rabbit_sketch_age10_cdm_run_v31531860088499.png" alt="">
+        <img src="drawings/scissors_sketch_age5_cdm_run_v41548441093203.png" alt="">
+        <img src="drawings/sheep_sketch_age10_cdm_run_v41548544845781.png" alt="">
+        <img src="drawings/snail_sketch_age10_cdm_run_v61563054263709.png" alt="">
+        <img src="drawings/spider_sketch_age8_cdm_run_v71575145749640.png" alt="">
+        <img src="drawings/tiger_sketch_age10_cdm_run_v51553122217093.png" alt="">
+        <img src="drawings/train_sketch_age8_cdm_run_v41541893947190.png" alt="">
+        <img src="drawings/tree_sketch_age10_cdm_run_v31532465108158.png" alt="">
+        <img src="drawings/watch_sketch_age5_cdm_run_v51557428941367.png" alt="">
+        <img src="drawings/whale_sketch_age6_cdm_run_v51560468264630.png" alt="">
+    </div>
     <div class="hero-inner">
       <h1>Exploring children's drawings</h1>
       <p class="lede">
@@ -111,19 +163,6 @@
         Data were collected through interactive drawing games at the San Jose
         Children's Discovery Museum and at Birch Aquarium in San Diego.
       </p>
-      <div class="strip">
-        <img src="drawings/cat_sketch_age10_cdm_run_v41536446273758.png" alt="child's drawing of a cat">
-        <img src="drawings/dog_sketch_age10_cdm_run_v31526152332221.png" alt="child's drawing of a dog">
-        <img src="drawings/rabbit_sketch_age10_cdm_run_v31528056599279.png" alt="child's drawing of a rabbit">
-        <img src="drawings/fish_sketch_age10_cdm_run_v31526152332221.png" alt="child's drawing of a fish">
-        <img src="drawings/bird_sketch_age10_cdm_run_v31527970199200.png" alt="child's drawing of a bird">
-        <img src="drawings/house_sketch_age10_cdm_run_v31526152332221.png" alt="child's drawing of a house">
-        <img src="drawings/tree_sketch_age10_cdm_run_v31526152332221.png" alt="child's drawing of a tree">
-        <img src="drawings/car_sketch_age10_cdm_run_v31526152332221.png" alt="child's drawing of a car">
-        <img src="drawings/airplane_sketch_age10_cdm_run_v31527970199200.png" alt="child's drawing of an airplane">
-        <img src="drawings/boat_sketch_age10_cdm_run_v31526151383057.png" alt="child's drawing of a boat">
-        <img src="drawings/cup_sketch_age10_cdm_run_v31526152332221.png" alt="child's drawing of a cup">
-      </div>
     </div>
   </div>
 
