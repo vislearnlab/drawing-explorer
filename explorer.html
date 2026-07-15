@@ -75,7 +75,7 @@
 <body>
 <div id="app">
   <aside id="side">
-    <button id="themeBtn" title="Toggle light / dark theme">☀ Light</button>
+    <button id="themeBtn" title="Toggle light / dark theme">Light</button>
     <h1>Drawing Explorer</h1>
     <div class="sub">Children's drawings in CLIP embedding space. <span id="count"></span></div>
 
@@ -611,7 +611,7 @@ function applyTheme(name){
   TH = THEMES[name] || THEMES.dark;
   document.documentElement.dataset.theme = name;
   const btn=document.getElementById("themeBtn");
-  btn.textContent = name==="light" ? "🌙 Dark" : "☀ Light";
+  btn.textContent = name==="light" ? "Dark" : "Light";
   try { localStorage.setItem("explorerTheme", name); } catch(e){}
   if(typeof draw==="function" && D) { buildLegend(); draw(); }
 }

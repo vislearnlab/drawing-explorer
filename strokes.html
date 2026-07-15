@@ -127,7 +127,7 @@
   <span class="sub">stroke&#8209;by&#8209;stroke · part&#8209;labeled · ages 2–10</span>
   <span class="spacer"></span>
   <span class="sub" id="statline"></span>
-  <button class="toggle" id="cmpBtn">⇄ Compare</button>
+  <button class="toggle" id="cmpBtn">Compare</button>
 </header>
 
 <div class="panels" id="panels"></div>
@@ -141,7 +141,7 @@
     </div>
     <div class="stage"><svg id="mStage" preserveAspectRatio="xMidYMid meet"></svg></div>
     <div class="controls">
-      <button class="btn" id="playBtn">▶ Play</button>
+      <button class="btn" id="playBtn">Play</button>
       <div class="scrub">
         <input type="range" id="scrub" min="0" max="1" step="0.001" value="1">
         <span class="lab" id="scrubLab"></span>
@@ -403,7 +403,7 @@ function openModal(p, d){
   setHandlers();
   setProgress(0);
   player.playing = true; player.last = 0;
-  $("#playBtn").textContent = "❚❚ Pause";
+  $("#playBtn").textContent = "Pause";
   player.raf = requestAnimationFrame(tick);
 }
 
@@ -439,7 +439,7 @@ function tick(ts){
   const speed=parseFloat($("#speedSel").value);
   const advance=(420*speed*dt)/player.total;
   let nt=player.t+advance;
-  if(nt>=1){ nt=1; player.playing=false; $("#playBtn").textContent="▶ Play"; }
+  if(nt>=1){ nt=1; player.playing=false; $("#playBtn").textContent="Play"; }
   setProgress(nt);
   if(player.playing) player.raf=requestAnimationFrame(tick);
 }
@@ -447,13 +447,13 @@ function tick(ts){
 function setHandlers(){
   $("#playBtn").onclick = () => {
     if(!player) return;
-    if(player.playing){ player.playing=false; cancelAnimationFrame(player.raf); $("#playBtn").textContent="▶ Play"; return; }
+    if(player.playing){ player.playing=false; cancelAnimationFrame(player.raf); $("#playBtn").textContent="Play"; return; }
     if(player.t>=1) setProgress(0);
-    player.playing=true; player.last=0; $("#playBtn").textContent="❚❚ Pause";
+    player.playing=true; player.last=0; $("#playBtn").textContent="Pause";
     player.raf=requestAnimationFrame(tick);
   };
   $("#scrub").oninput = e => {
-    if(player){ player.playing=false; cancelAnimationFrame(player.raf); $("#playBtn").textContent="▶ Play"; setProgress(parseFloat(e.target.value)); }
+    if(player){ player.playing=false; cancelAnimationFrame(player.raf); $("#playBtn").textContent="Play"; setProgress(parseFloat(e.target.value)); }
   };
 }
 
