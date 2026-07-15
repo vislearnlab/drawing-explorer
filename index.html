@@ -5,82 +5,84 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Exploring Children's Drawings — Visual Learning Lab</title>
 <meta name="description" content="Interactive explorers for a large dataset of children's drawings: CLIP embedding maps, stroke-by-stroke part-labeled playback, and drawings paired with descriptions. Visual Learning Lab, UC San Diego.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --ink:#22303c;          /* charcoal body text */
-    --head:#132430;         /* darker headings */
-    --muted:#6a7681;
-    --line:#e2e6ea;
-    --accent:#1a7fa0;       /* ocean blue, from the lab whale */
-    --accent-dark:#136580;
+    --teal:#4b9eb5;          /* soft ocean heading color, from the lab site */
+    --teal-link:#2f7d97;     /* darker for link contrast */
+    --ink:#3f4a52;           /* body text */
+    --muted:#828e97;
+    --line:#e7ecef;
+    --band:#f2f8fa;          /* soft hero band */
     --page:#ffffff;
   }
   *{box-sizing:border-box}
   html,body{margin:0}
   body{
     background:var(--page); color:var(--ink);
-    font:16px/1.6 "Helvetica Neue",Helvetica,Arial,-apple-system,BlinkMacSystemFont,sans-serif;
-    -webkit-font-smoothing:antialiased;
+    font:16px/1.65 "Nunito Sans","Helvetica Neue",Helvetica,Arial,sans-serif;
+    font-weight:400; -webkit-font-smoothing:antialiased;
   }
-  a{color:var(--accent); text-decoration:none}
+  a{color:var(--teal-link); text-decoration:none}
   a:hover{text-decoration:underline}
-  .wrap{max-width:940px; margin:0 auto; padding:0 28px}
+  .wrap{max-width:1000px; margin:0 auto; padding:0 30px}
 
-  /* header / nav — flat, like the lab site */
+  /* header: nav left, whale logo right (like the lab) */
   header.site{border-bottom:1px solid var(--line)}
-  .site-inner{max-width:940px; margin:0 auto; padding:18px 28px; display:flex; align-items:center; gap:16px; flex-wrap:wrap}
-  .brand{display:flex; align-items:center; gap:12px; color:var(--head); font-weight:700; font-size:17px}
-  .brand img{height:46px; width:auto; display:block}
-  .brand .sub{color:var(--muted); font-weight:400; font-size:13px; display:block; margin-top:1px}
-  nav{margin-left:auto; display:flex; gap:22px; flex-wrap:wrap}
-  nav a{color:var(--ink); font-size:14.5px}
-  nav a.here{color:var(--accent); font-weight:600}
+  .site-inner{max-width:1000px; margin:0 auto; padding:16px 30px; display:flex; align-items:center; gap:18px}
+  nav{display:flex; gap:26px; flex-wrap:wrap}
+  nav a{color:#59666e; font-size:15px; font-weight:400}
+  nav a:hover{color:var(--teal-link); text-decoration:none}
+  nav a.here{color:var(--teal-link); font-weight:600}
+  .site-inner .logo{margin-left:auto}
+  .site-inner .logo img{height:52px; width:auto; display:block}
 
-  /* intro */
-  .intro{padding:44px 0 8px}
-  h1{font-size:33px; line-height:1.15; margin:0 0 16px; color:var(--head); font-weight:700; letter-spacing:-.2px}
-  .lede{font-size:18px; color:var(--ink); max-width:720px; margin:0 0 14px}
-  .note{color:var(--muted); font-size:15px; max-width:720px; margin:0}
+  /* hero */
+  .hero{background:var(--band); border-bottom:1px solid var(--line)}
+  .hero-inner{max-width:1000px; margin:0 auto; padding:46px 30px 40px}
+  h1{font-size:34px; line-height:1.2; margin:0 0 18px; color:var(--teal);
+     font-weight:600; letter-spacing:.1px}
+  .lede{font-size:17.5px; color:var(--ink); max-width:760px; margin:0 0 12px; font-weight:400}
+  .note{color:var(--muted); font-size:15px; max-width:760px; margin:0}
 
-  h2{font-size:15px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted);
-     margin:44px 0 18px; font-weight:700; border-bottom:1px solid var(--line); padding-bottom:8px}
+  /* drawing strip — real sketches from the dataset, like the lab's drawing grid */
+  .strip{display:flex; gap:14px; flex-wrap:wrap; margin-top:30px}
+  .strip img{width:74px; height:74px; object-fit:contain; opacity:.85}
 
-  /* explorer list — flat bordered cards, no gradients/emoji */
-  .cards{display:grid; gap:0; border:1px solid var(--line); border-radius:4px; overflow:hidden}
-  .card{display:block; padding:22px 22px; text-decoration:none; color:inherit;
-        border-top:1px solid var(--line)}
-  .card:first-child{border-top:0}
-  .card:hover{background:#f6f9fb; text-decoration:none}
-  .card h3{margin:0 0 5px; font-size:19px; color:var(--accent-dark); font-weight:700}
-  .card:hover h3{color:var(--accent)}
-  .card p{margin:0; color:var(--ink); font-size:15px; max-width:760px}
+  section{padding:40px 0}
+  h2{font-size:23px; color:var(--teal); font-weight:600; margin:0 0 18px}
+
+  /* explorer list */
+  .cards{display:grid; gap:16px; grid-template-columns:1fr}
+  .card{display:block; padding:20px 22px; text-decoration:none; color:inherit;
+        border:1px solid var(--line); border-radius:8px; transition:border-color .12s, background .12s}
+  .card:hover{border-color:var(--teal); background:#f7fbfc; text-decoration:none}
+  .card h3{margin:0 0 5px; font-size:19px; color:var(--teal-link); font-weight:700}
+  .card p{margin:0; color:var(--ink); font-size:15px; max-width:800px}
 
   /* citation */
-  .cite{border-left:3px solid var(--accent); background:#f6f9fb; padding:16px 20px; border-radius:0 4px 4px 0}
+  .cite{border-left:3px solid var(--teal); background:var(--band); padding:16px 20px; border-radius:0 6px 6px 0}
   .cite p{margin:0; font-size:15px; line-height:1.6}
 
-  /* publications */
   ul.pubs{list-style:none; padding:0; margin:0}
   ul.pubs li{padding:14px 0; border-top:1px solid var(--line); font-size:15px; line-height:1.55}
   ul.pubs li:first-child{border-top:0}
-  ul.pubs .t{color:var(--head); font-weight:600}
+  ul.pubs .t{color:#3a4650; font-weight:600}
   ul.pubs .v{color:var(--muted); font-style:italic}
 
-  footer{border-top:1px solid var(--line); margin-top:52px}
-  .foot-inner{max-width:940px; margin:0 auto; padding:22px 28px; color:var(--muted); font-size:14px;
+  footer{border-top:1px solid var(--line); margin-top:20px; background:var(--band)}
+  .foot-inner{max-width:1000px; margin:0 auto; padding:22px 30px; color:var(--muted); font-size:14px;
     display:flex; gap:20px; flex-wrap:wrap; align-items:center}
   .foot-inner .spacer{flex:1}
-  @media(max-width:600px){ h1{font-size:27px} nav{margin-left:0} }
+  @media(max-width:620px){ h1{font-size:27px} .site-inner{flex-wrap:wrap} nav{order:2; width:100%} }
 </style>
 </head>
 <body>
 
   <header class="site">
     <div class="site-inner">
-      <a class="brand" href="https://www.vislearnlab.org">
-        <img src="assets/vll_whale_logo.png" alt="UCSD Visual Learning Lab">
-        <span>Visual Learning Lab<span class="sub">UC San Diego</span></span>
-      </a>
       <nav>
         <a href="https://www.vislearnlab.org">Home</a>
         <a href="https://www.vislearnlab.org/people">People</a>
@@ -89,13 +91,15 @@
         <a href="https://www.vislearnlab.org/participate">Participate</a>
         <a class="here" href="index.html">Explorers</a>
       </nav>
+      <a class="logo" href="https://www.vislearnlab.org" title="Visual Learning Lab">
+        <img src="assets/vll_whale_logo.png" alt="UCSD Visual Learning Lab">
+      </a>
     </div>
   </header>
 
-  <div class="wrap">
-
-    <section class="intro">
-      <h1>Exploring Children's Drawings</h1>
+  <div class="hero">
+    <div class="hero-inner">
+      <h1>Exploring children's drawings</h1>
       <p class="lede">
         Interactive tools for exploring a large dataset of children's drawings —
         tens of thousands of sketches across dozens of object categories, produced
@@ -107,7 +111,23 @@
         Data were collected through interactive drawing games at the San Jose
         Children's Discovery Museum and at Birch Aquarium in San Diego.
       </p>
-    </section>
+      <div class="strip">
+        <img src="drawings/cat_sketch_age10_cdm_run_v41536446273758.png" alt="child's drawing of a cat">
+        <img src="drawings/dog_sketch_age10_cdm_run_v31526152332221.png" alt="child's drawing of a dog">
+        <img src="drawings/rabbit_sketch_age10_cdm_run_v31528056599279.png" alt="child's drawing of a rabbit">
+        <img src="drawings/fish_sketch_age10_cdm_run_v31526152332221.png" alt="child's drawing of a fish">
+        <img src="drawings/bird_sketch_age10_cdm_run_v31527970199200.png" alt="child's drawing of a bird">
+        <img src="drawings/house_sketch_age10_cdm_run_v31526152332221.png" alt="child's drawing of a house">
+        <img src="drawings/tree_sketch_age10_cdm_run_v31526152332221.png" alt="child's drawing of a tree">
+        <img src="drawings/car_sketch_age10_cdm_run_v31526152332221.png" alt="child's drawing of a car">
+        <img src="drawings/airplane_sketch_age10_cdm_run_v31527970199200.png" alt="child's drawing of an airplane">
+        <img src="drawings/boat_sketch_age10_cdm_run_v31526151383057.png" alt="child's drawing of a boat">
+        <img src="drawings/cup_sketch_age10_cdm_run_v31526152332221.png" alt="child's drawing of a cup">
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap">
 
     <section>
       <h2>Explorers</h2>
