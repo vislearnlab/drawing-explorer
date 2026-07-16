@@ -14,6 +14,14 @@ it's the single URL to cite. The two in-repo explorers are:
   per-stroke SVG paths, colored by agreed semantic part, with autoplay and a
   side-by-side compare mode. Data is built by `build_strokes.py` into
   `strokes_data/`. See `build_strokes.py`'s docstring for the source inputs.
+- **`bing.html`** — the **longitudinal** Bing-Nursery-School explorer: 2,755
+  drawings from 72 children (ages 3–6) who were revisited across ~15 months
+  (2018–2020). Two views: *Child over time* (a category × session matrix for one
+  child, ordered by age) and *Category across ages* (one category's drawings from
+  all children, age-banded). Strokes render from their SVG paths and are colored
+  by labeled semantic part. Data is built by `build_bing.py` into `bing_data/`
+  from the anonymized gold-standard tidy data in the `bingdraw_annotations` repo
+  (never from raw MongoDB, which still carries children's names).
 
 ![overview](_overview.png)
 
@@ -43,8 +51,13 @@ python3 -m http.server 8000
 - `index.html` — landing page linking the explorers (cite this URL).
 - `explorer.html` — the self-contained CLIP-map explorer (no build step).
 - `strokes.html` — the self-contained stroke-by-stroke player (no build step).
+- `bing.html` — the self-contained longitudinal Bing explorer (no build step).
 - `points.json` — t-SNE layout + per-drawing CLIP scores consumed by `explorer.html`.
 - `strokes_data/` — per-category stroke JSON consumed by `strokes.html`.
+- `bing_data/` — per-child and per-category longitudinal JSON consumed by `bing.html`.
+- `build_bing.py` — regenerates `bing_data/` from the `bingdraw_annotations` repo
+  (anonymized tidy CSV + DOBs + gold-standard part annotations). `pip install
+  pyreadr` to include the part labels; without it the build still runs, sans colors.
 - `drawings/` — the 37,770 drawing PNGs (150×150).
 - `build_data.py` — regenerates `points.json` from the source CLIP embeddings
   and recognizability tables (see below).

@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bing Longitudinal Drawing Explorer</title>
+<style>
+  :root{
+    --bg:#f0f0f0; --panel:#f7f7f7; --panel2:#e8e8e8; --line:#d9d9d9;
+    --ink:#1a1a1a; --muted:#6f6f6f; --accent:#2e6df6; --tile:#ffffff;
+    --draw:#243244;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:var(--bg); color:var(--ink);
+    font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    display:flex; flex-direction:column; height:100vh; overflow:hidden;
+  }
+  header{
+    padding:11px 18px; border-bottom:1px solid var(--line); background:var(--panel);
+    display:flex; align-items:baseline; gap:14px; flex-wrap:wrap;
+  }
+  header h1{font-size:16px; margin:0; font-weight:700; letter-spacing:.2px}
+  header .sub{color:var(--muted); font-size:12px}
+  header .spacer{flex:1}
+  .seg{display:flex; border:1px solid var(--line); border-radius:9px; overflow:hidden}
+  .seg button{
+    background:var(--panel2); color:var(--ink); border:0; border-left:1px solid var(--line);
+    padding:7px 14px; cursor:pointer; font-size:13px; font-weight:650;
+  }
+  .seg button:first-child{border-left:0}
+  .seg button.on{background:var(--accent); color:#fff}
+  .bar{
+    display:flex; align-items:center; gap:12px; padding:10px 18px; flex-wrap:wrap;
+    border-bottom:1px solid var(--line); background:var(--panel);
+  }
+  select{
+    background:#fff; color:var(--ink); border:1px solid var(--line);
+    border-radius:7px; padding:6px 9px; font-size:13px; font-weight:600; max-width:360px;
+  }
+  select.cat{text-transform:capitalize}
+  .bar .lab{font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted)}
+  .bar .count{color:var(--muted); font-size:12.5px; margin-left:auto;
+    font-variant-numeric:tabular-nums}
+  .chk{display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--muted); cursor:pointer}
+  /* legend */
+  .legend{
+    display:flex; align-items:center; gap:7px; flex-wrap:wrap; padding:9px 18px;
+    border-bottom:1px solid var(--line); background:var(--panel); min-height:0;
+  }
+  .legend.hide{display:none}
+  .legtitle{font-size:10.5px; text-transform:uppercase; letter-spacing:.07em; color:var(--muted); margin-right:2px}
+  .chip{
+    display:inline-flex; align-items:center; gap:6px; padding:3px 9px; border-radius:20px;
+    background:#fff; border:1px solid var(--line); cursor:pointer; font-size:12px;
+    user-select:none; text-transform:capitalize;
+  }
+  .chip:hover{border-color:var(--accent)}
+  .chip .sw{width:11px; height:11px; border-radius:3px; flex:none}
+  .chip.off{opacity:.4; text-decoration:line-through}
+  .chip .cn{color:var(--muted); font-variant-numeric:tabular-nums}
+  /* scroller */
+  .wrap{flex:1; overflow:auto; padding:16px 18px 40px}
+  .empty{color:var(--muted); padding:60px; text-align:center}
+  /* child matrix */
+  table.mtx{border-collapse:separate; border-spacing:0}
+  table.mtx th, table.mtx td{padding:0}
+  .cornr{position:sticky; left:0; top:0; z-index:6; background:var(--bg)}
+  .colh{position:sticky; top:0; z-index:4; background:var(--bg); padding:2px 6px 8px; text-align:center; min-width:118px}
+  .colh .age{font-weight:700; font-size:14px}
+  .colh .dt{color:var(--muted); font-size:11px; font-variant-numeric:tabular-nums}
+  .colh .sn{color:var(--muted); font-size:10.5px; text-transform:uppercase; letter-spacing:.05em}
+  .rowh{position:sticky; left:0; z-index:3; background:var(--bg); padding:0 12px 0 2px; text-align:right;
+    font-weight:650; text-transform:capitalize; white-space:nowrap; font-size:13px; vertical-align:middle}
+  .cell{padding:5px}
+  .card{background:var(--tile); border:1px solid var(--line); border-radius:10px; padding:6px;
+    cursor:pointer; width:112px; height:112px; transition:border-color .12s, transform .12s, box-shadow .12s}
+  .card:hover{border-color:var(--accent); transform:translateY(-2px); box-shadow:0 4px 14px rgba(0,0,0,.09)}
+  .card svg{width:100%; height:100%; display:block; overflow:hidden}
+  .card svg path{stroke-width:2px}
+  .blank{width:112px; height:112px; border:1px dashed var(--line); border-radius:10px; opacity:.5}
+  /* category gallery */
+  .band{margin:6px 0 22px}
+  .band h3{font-size:13px; margin:0 0 10px; color:var(--muted); font-weight:700; position:sticky; left:0; display:inline-block}
+  .band h3 b{color:var(--ink)}
+  .grid{display:grid; gap:12px; grid-template-columns:repeat(auto-fill,minmax(118px,1fr))}
+  .gcard{background:var(--tile); border:1px solid var(--line); border-radius:10px; padding:7px;
+    cursor:pointer; transition:border-color .12s, transform .12s, box-shadow .12s}
+  .gcard:hover{border-color:var(--accent); transform:translateY(-2px); box-shadow:0 4px 14px rgba(0,0,0,.09)}
+  .gcard svg{width:100%; aspect-ratio:1; height:auto; display:block; overflow:hidden}
+  .gcard svg path{stroke-width:1.8px}
+  .gcard .meta{display:flex; justify-content:space-between; margin-top:5px; color:var(--muted);
+    font-size:11px; font-variant-numeric:tabular-nums}
+  .gcard .meta .ag{font-weight:700; color:var(--ink)}
+  /* modal */
+  .overlay{position:fixed; inset:0; background:rgba(20,22,28,.5); backdrop-filter:blur(2px);
+    display:none; align-items:center; justify-content:center; z-index:20; padding:24px}
+  .overlay.show{display:flex}
+  .modal{background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    width:min(520px,96vw); max-height:94vh; overflow:auto; padding:18px 20px; box-shadow:0 18px 60px rgba(0,0,0,.25)}
+  .modal .top{display:flex; align-items:baseline; gap:10px; margin-bottom:12px}
+  .modal .top h3{margin:0; font-size:17px; text-transform:capitalize}
+  .modal .top .tag{color:var(--muted); font-size:12.5px}
+  .modal .close{margin-left:auto; background:none; border:0; color:var(--muted); font-size:24px; cursor:pointer; line-height:1}
+  .stage{background:#fff; border:1px solid var(--line); border-radius:10px;
+    width:min(440px,70vh,100%); aspect-ratio:1; margin:0 auto; overflow:hidden}
+  .stage svg{width:100%; height:100%; display:block; overflow:hidden}
+  .stage svg path{stroke-width:2.6px}
+  .controls{display:flex; align-items:center; gap:12px; margin:14px 0 6px}
+  .btn{background:var(--accent); color:#fff; border:0; border-radius:8px; padding:8px 14px; font-weight:650; cursor:pointer; font-size:13px}
+  .scrub{flex:1; display:flex; align-items:center; gap:9px}
+  .scrub input{flex:1}
+  .scrub .lab{color:var(--muted); font-size:12px; min-width:78px; text-align:right; font-variant-numeric:tabular-nums}
+  .speed{display:flex; align-items:center; gap:6px; color:var(--muted); font-size:12px}
+  .nowpart{margin-top:8px; color:var(--muted); font-size:13px; min-height:20px}
+  .nowpart b{text-transform:capitalize}
+  .hint{color:var(--muted); font-size:11.5px; margin-top:4px}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#cfcfcf;border-radius:8px}
+  ::-webkit-scrollbar-thumb:hover{background:#bcbcbc}
+</style>
+</head>
+<body>
+<header>
+  <h1>Bing Longitudinal Drawing Explorer</h1>
+  <span class="sub" id="subline">Bing Nursery School · same children drawing over time</span>
+  <span class="spacer"></span>
+  <div class="seg" id="modeSeg">
+    <button data-mode="child" class="on">Child over time</button>
+    <button data-mode="cat">Category across ages</button>
+  </div>
+</header>
+
+<div class="bar">
+  <span class="lab" id="pickLab">Child</span>
+  <select id="picker"></select>
+  <div class="seg" id="colorSeg" title="How strokes are colored">
+    <button data-color="part" class="on">Color: semantic part</button>
+    <button data-color="ink">Plain ink</button>
+  </div>
+  <label class="chk"><input type="checkbox" id="animChk" checked> animate strokes</label>
+  <span class="count" id="count"></span>
+</div>
+
+<div class="legend hide" id="legend"></div>
+
+<div class="wrap"><div id="view"></div><div class="empty" id="empty" style="display:none"></div></div>
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <div class="top"><h3 id="mTitle"></h3><span class="tag" id="mTag"></span><button class="close" id="mClose">&times;</button></div>
+    <div class="stage"><svg id="mStage" preserveAspectRatio="xMidYMid meet"></svg></div>
+    <div class="controls">
+      <button class="btn" id="playBtn">Play</button>
+      <div class="scrub"><input type="range" id="scrub" min="0" max="1" step="0.001" value="1"><span class="lab" id="scrubLab"></span></div>
+      <div class="speed">speed
+        <select id="speedSel"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option></select>
+      </div>
+    </div>
+    <div class="nowpart" id="nowpart"></div>
+    <div class="hint">Fit to the drawing's own bounding box. Hover a stroke for its labeled part; drag to scrub.</div>
+  </div>
+</div>
+
+<script>
+const DATA = "bing_data";
+const $ = s => document.querySelector(s);
+const el = (t,c,h) => { const e=document.createElement(t); if(c)e.className=c; if(h!=null)e.innerHTML=h; return e; };
+const NS = "http://www.w3.org/2000/svg";
+const PALETTE = ["#2e6df6","#e63946","#2a9d8f","#e9a200","#9b5de5","#f3722c","#118ab2","#d6336c",
+  "#588157","#bc6c25","#b5179e","#06a77d","#ef476f","#3a0ca3","#c9a200","#4c956c","#7209b7",
+  "#0096c7","#d00000","#5c8001","#ad2e7e","#1d3557"];
+const GRAY="#9aa0aa", UNINTEL="#e3e5e9", INK="#243244", DIM="#eef0f3";
+const LOW_MEANING = new Set(["unintelligible","other","none","?","na","n/a",""]);
+
+let INDEX=null, MODE="child", ANIM=true, COLORBY="part";
+let PARTCOLOR={}, hiddenParts=new Set();
+const childCache={}, catCache={};
+let LIVE=[];   // {path, s} for in-place recolor without re-animating
+
+/* thumbnail stroke-on animator (draw once, stay drawn) */
+const thumb={items:[], raf:0, io:null, last:0};
+const THUMB_SPEED=560;
+
+function buildPartColors(){
+  const tot={};
+  for(const cat in INDEX.parts) for(const [p,c] of INDEX.parts[cat]) tot[p]=(tot[p]||0)+c;
+  const ranked=Object.entries(tot).sort((a,b)=>b[1]-a[1]);
+  let pi=0; PARTCOLOR={};
+  for(const [p] of ranked){
+    if(p==="unintelligible") PARTCOLOR[p]=UNINTEL;
+    else if(LOW_MEANING.has(p)) PARTCOLOR[p]=GRAY;
+    else PARTCOLOR[p]=PALETTE[pi++ % PALETTE.length];
+  }
+}
+function strokeColor(s){
+  if(COLORBY==="ink" || !s.p) return INK;
+  if(hiddenParts.has(s.p)) return DIM;
+  return PARTCOLOR[s.p] || GRAY;
+}
+function recolor(){ for(const {path,s} of LIVE) path.setAttribute("stroke", strokeColor(s)); }
+
+function strokePath(s){
+  const p=document.createElementNS(NS,"path");
+  p.setAttribute("d", s.d);
+  p.setAttribute("fill","none");
+  p.setAttribute("stroke", strokeColor(s));
+  p.setAttribute("vector-effect","non-scaling-stroke");
+  p.setAttribute("stroke-linecap","round");
+  p.setAttribute("stroke-linejoin","round");
+  return p;
+}
+function sketchSVG(rec){
+  const svg=document.createElementNS(NS,"svg");
+  svg.setAttribute("viewBox", rec.vb.join(" "));
+  svg.setAttribute("preserveAspectRatio","xMidYMid meet");
+  const paths=rec.strokes.map(s=>{ const p=strokePath(s); svg.appendChild(p); LIVE.push({path:p,s}); return p; });
+  return {svg, paths};
+}
+function registerThumb(cardEl, paths){
+  if(!ANIM) return;                          // static: strokes already fully drawn
+  const it={el:cardEl, paths, delay:Math.random()*1.0, state:"idle", clock:0, visible:false};
+  it.lens=paths.map(pe=>{ try{return pe.getTotalLength();}catch(e){return .001;} });
+  it.total=it.lens.reduce((a,b)=>a+b,0)||1;
+  // Start FULLY DRAWN (dasharray set, offset 0). The draw-on animation replays
+  // when a card first scrolls into view — so if the observer/rAF never fires
+  // (headless, reduced-motion, older engines) the drawings still show.
+  paths.forEach((pe,i)=>{ pe.style.strokeDasharray=it.lens[i]||.001; pe.style.strokeDashoffset=0; });
+  cardEl._it=it; thumb.items.push(it); thumb.io.observe(cardEl);
+}
+function applyProgress(it, frac){
+  const target=frac*it.total; let acc=0;
+  for(let i=0;i<it.paths.length;i++){
+    const L=it.lens[i], pe=it.paths[i];
+    if(acc+L<=target){ pe.style.strokeDashoffset=0; pe.style.visibility="visible"; acc+=L; }
+    else if(acc>=target){ pe.style.strokeDashoffset=L; pe.style.visibility="hidden"; }
+    else { pe.style.strokeDashoffset=L*(1-(target-acc)/L); pe.style.visibility="visible"; acc+=L; }
+  }
+}
+function thumbTick(ts){
+  if(!thumb.last) thumb.last=ts;
+  const dt=Math.min(.05,(ts-thumb.last)/1000); thumb.last=ts;
+  for(const it of thumb.items){
+    if(it.state==="done") continue;
+    if(it.state==="idle"){
+      if(!it.visible) continue;                    // stay fully drawn until revealed
+      it.paths.forEach((pe,k)=>{ pe.style.strokeDashoffset=it.lens[k]||.001; pe.style.visibility="hidden"; });
+      it.state="delay"; it.clock=0;
+    }
+    if(!it.visible) continue;
+    it.clock+=dt;
+    if(it.state==="delay"){ if(it.clock>=it.delay){ it.state="draw"; it.clock=0; } }
+    else if(it.state==="draw"){ const frac=Math.min(1,it.clock/(it.total/THUMB_SPEED)); applyProgress(it,frac); if(frac>=1) it.state="done"; }
+  }
+  thumb.raf=requestAnimationFrame(thumbTick);
+}
+function resetRender(){ if(thumb.io) thumb.io.disconnect(); thumb.items=[]; thumb.last=0; LIVE=[]; }
+
+/* ---------------- init ---------------- */
+async function init(){
+  INDEX=await (await fetch(`${DATA}/index.json`)).json();
+  buildPartColors();
+  const m=INDEX.meta;
+  $("#subline").textContent =
+    `Bing Nursery School · ${m.n_children} children · ${m.n_sketches.toLocaleString()} drawings `+
+    `(${m.n_annotated.toLocaleString()} part-labeled) · ages ${m.age_min}–${m.age_max} · `+
+    `${m.date_min.slice(0,7)} to ${m.date_max.slice(0,7)}`;
+  thumb.io=new IntersectionObserver(ents=>{ for(const e of ents){ if(e.target._it) e.target._it.visible=e.isIntersecting; } }, {rootMargin:"160px"});
+  thumb.raf=requestAnimationFrame(thumbTick);
+  $("#modeSeg").querySelectorAll("button").forEach(b=> b.onclick=()=>setMode(b.dataset.mode));
+  $("#colorSeg").querySelectorAll("button").forEach(b=> b.onclick=()=>{
+    COLORBY=b.dataset.color;
+    $("#colorSeg").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x.dataset.color===COLORBY));
+    $("#legend").classList.toggle("hide", COLORBY!=="part");
+    recolor();
+  });
+  $("#animChk").onchange=e=>{ ANIM=e.target.checked; refresh(); };
+  $("#picker").onchange=refresh;
+  setMode("child");
+}
+function setMode(mode){
+  MODE=mode;
+  $("#modeSeg").querySelectorAll("button").forEach(b=> b.classList.toggle("on", b.dataset.mode===mode));
+  const pick=$("#picker");
+  if(mode==="child"){
+    $("#pickLab").textContent="Child"; pick.classList.remove("cat");
+    pick.innerHTML=INDEX.children.map(c=>{
+      const span=c.age_min!=null?`age ${c.age_min}–${c.age_max}`:"";
+      return `<option value="${c.id}">child ${c.id} · ${c.n_sessions} session${c.n_sessions>1?"s":""} · ${c.n_sketches} drawings · ${span}</option>`;
+    }).join("");
+  } else {
+    $("#pickLab").textContent="Category"; pick.classList.add("cat");
+    pick.innerHTML=INDEX.categories.map(c=>
+      `<option value="${c.slug}">${c.name} · ${c.n} drawings · ${c.n_children} kids · age ${c.age_min}–${c.age_max}</option>`).join("");
+  }
+  refresh();
+}
+async function refresh(){
+  resetRender();
+  $("#view").innerHTML=""; $("#empty").style.display="none";
+  if(MODE==="child") await renderChild(+$("#picker").value);
+  else await renderCategory($("#picker").value);
+}
+
+/* legend: parts present in current view (with counts), click to toggle */
+function buildLegend(counts){
+  const leg=$("#legend");
+  const ranked=Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+  if(!ranked.length){ leg.classList.add("hide"); return; }
+  leg.innerHTML=`<span class="legtitle">Color = labeled part · click to mute</span>`;
+  for(const [part,n] of ranked){
+    const chip=el("div","chip",`<span class="sw" style="background:${PARTCOLOR[part]||GRAY}"></span>${part}<span class="cn">${n}</span>`);
+    if(hiddenParts.has(part)) chip.classList.add("off");
+    chip.onclick=()=>{ hiddenParts.has(part)?hiddenParts.delete(part):hiddenParts.add(part); chip.classList.toggle("off"); recolor(); };
+    leg.appendChild(chip);
+  }
+  leg.classList.toggle("hide", COLORBY!=="part");
+}
+
+/* ---------------- child-over-time matrix ---------------- */
+async function renderChild(id){
+  let data=childCache[id] || (childCache[id]=await (await fetch(`${DATA}/child_${id}.json`)).json());
+  const sessions=data.sessions;
+  const cats=[...new Set(sessions.flatMap(s=>s.sketches.map(r=>r.cat)))].sort();
+  const partCounts={};
+  $("#count").textContent=`${sessions.length} sessions · ${cats.length} categories · ${sessions.reduce((a,s)=>a+s.sketches.length,0)} drawings`;
+  const tbl=el("table","mtx");
+  const thead=el("tr"); thead.appendChild(el("th","cornr"));
+  sessions.forEach((s,i)=> thead.appendChild(el("th","colh",
+    `<div class="sn">session ${i+1}</div><div class="age">${s.age!=null?s.age+"y":"—"}</div><div class="dt">${s.date}</div>`)));
+  tbl.appendChild(thead);
+  for(const cat of cats){
+    const tr=el("tr"); tr.appendChild(el("th","rowh",cat));
+    for(const s of sessions){
+      const td=el("td","cell");
+      const rec=s.sketches.find(r=>r.cat===cat);
+      if(rec){
+        const card=el("div","card"); const {svg,paths}=sketchSVG(rec); card.appendChild(svg);
+        card.title=`${cat} · age ${rec.age}y · ${rec.strokes.length} strokes`;
+        card.onclick=()=>openModal(rec);
+        td.appendChild(card); registerThumb(card,paths);
+        for(const st of rec.strokes) if(st.p) partCounts[st.p]=(partCounts[st.p]||0)+1;
+      } else td.appendChild(el("div","blank"));
+      tr.appendChild(td);
+    }
+    tbl.appendChild(tr);
+  }
+  $("#view").appendChild(tbl);
+  buildLegend(partCounts);
+}
+
+/* ---------------- category across ages gallery ---------------- */
+function ageBand(a){ if(a==null) return "unknown age"; const lo=Math.floor(a*2)/2; return `${lo.toFixed(1)}–${(lo+0.5).toFixed(1)} years`; }
+async function renderCategory(slug){
+  let data=catCache[slug] || (catCache[slug]=await (await fetch(`${DATA}/cat_${slug}.json`)).json());
+  const recs=data.sketches, partCounts={};
+  $("#count").textContent=`${recs.length} drawings · ${new Set(recs.map(r=>r.sub)).size} children`;
+  const view=$("#view"); let curBand=null, grid=null;
+  for(const rec of recs){
+    const b=ageBand(rec.age);
+    if(b!==curBand){
+      curBand=b;
+      const inBand=recs.filter(r=>ageBand(r.age)===b).length;
+      const band=el("div","band"); band.appendChild(el("h3",null,`<b>${b}</b> · ${inBand} drawings`));
+      grid=el("div","grid"); band.appendChild(grid); view.appendChild(band);
+    }
+    const card=el("div","gcard"); const {svg,paths}=sketchSVG(rec); card.appendChild(svg);
+    card.appendChild(el("div","meta",`<span class="ag">${rec.age!=null?rec.age+"y":"—"}</span><span>child ${rec.sub}</span>`));
+    card.title=`${data.category} · child ${rec.sub} · age ${rec.age}y · ${rec.date}`;
+    card.onclick=()=>openModal(rec);
+    grid.appendChild(card); registerThumb(card,paths);
+    for(const st of rec.strokes) if(st.p) partCounts[st.p]=(partCounts[st.p]||0)+1;
+  }
+  buildLegend(partCounts);
+}
+
+/* ---------------- stroke player modal ---------------- */
+let player=null;
+function openModal(rec){
+  $("#mTitle").textContent=rec.cat;
+  $("#mTag").textContent=`child ${rec.sub} · age ${rec.age!=null?rec.age+"y":"?"} · ${rec.date} · ${rec.strokes.length} strokes`;
+  const svg=$("#mStage"); svg.setAttribute("viewBox", rec.vb.join(" ")); svg.innerHTML="";
+  const paths=rec.strokes.map(s=>{ const p=strokePath(s); p.addEventListener("mousemove",()=>showPart(s)); svg.appendChild(p); return p; });
+  const lens=paths.map(pe=>{ try{return pe.getTotalLength();}catch(e){return .001;} });
+  paths.forEach((pe,i)=>{ const L=lens[i]||.001; pe.style.strokeDasharray=L; pe.style.strokeDashoffset=L; pe.style.visibility="hidden"; });
+  player={rec, paths, lens, total:lens.reduce((a,b)=>a+b,0)||1, t:0, playing:true, raf:0, last:0};
+  $("#nowpart").innerHTML=""; $("#overlay").classList.add("show");
+  setProgress(0); $("#playBtn").textContent="Pause"; player.raf=requestAnimationFrame(tick);
+}
+function showPart(s){
+  const e=$("#nowpart");
+  if(!s || !s.p){ e.innerHTML = s ? "" : ""; return; }
+  const [ag,tot]=s.a||[]; const agr=(ag!=null&&tot!=null)?` · ${ag} of ${tot} annotators agreed`:"";
+  e.innerHTML=`Part: <b style="color:${PARTCOLOR[s.p]||GRAY}">${s.p}</b>${agr}`;
+}
+function setProgress(frac){
+  if(!player) return;
+  player.t=Math.max(0,Math.min(1,frac));
+  const target=player.t*player.total; let acc=0, shown=0, cur=-1;
+  for(let i=0;i<player.paths.length;i++){
+    const L=player.lens[i], pe=player.paths[i];
+    if(acc+L<=target){ pe.style.strokeDashoffset=0; pe.style.visibility="visible"; acc+=L; shown=i+1; cur=i; }
+    else if(acc>=target){ pe.style.strokeDashoffset=L; pe.style.visibility="hidden"; }
+    else { pe.style.strokeDashoffset=L*(1-(target-acc)/L); pe.style.visibility="visible"; acc+=L; shown=i+1; cur=i; }
+  }
+  $("#scrub").value=player.t; $("#scrubLab").textContent=`${shown}/${player.paths.length} strokes`;
+  if(cur>=0) showPart(player.rec.strokes[cur]);
+}
+function tick(ts){
+  if(!player||!player.playing) return;
+  if(!player.last) player.last=ts;
+  const dt=(ts-player.last)/1000; player.last=ts;
+  const speed=parseFloat($("#speedSel").value);
+  let nt=player.t+(0.55*speed*dt);
+  if(nt>=1){ nt=1; player.playing=false; $("#playBtn").textContent="Play"; }
+  setProgress(nt);
+  if(player.playing) player.raf=requestAnimationFrame(tick);
+}
+$("#playBtn").onclick=()=>{
+  if(!player) return;
+  if(player.playing){ player.playing=false; cancelAnimationFrame(player.raf); $("#playBtn").textContent="Play"; return; }
+  if(player.t>=1) setProgress(0);
+  player.playing=true; player.last=0; $("#playBtn").textContent="Pause"; player.raf=requestAnimationFrame(tick);
+};
+$("#scrub").oninput=e=>{ if(player){ player.playing=false; cancelAnimationFrame(player.raf); $("#playBtn").textContent="Play"; setProgress(parseFloat(e.target.value)); } };
+function closeModal(){ if(player){ player.playing=false; cancelAnimationFrame(player.raf); } $("#overlay").classList.remove("show"); }
+$("#mClose").onclick=closeModal;
+$("#overlay").onclick=e=>{ if(e.target.id==="overlay") closeModal(); };
+document.addEventListener("keydown",e=>{
+  if(e.key==="Escape") closeModal();
+  if(e.key===" " && $("#overlay").classList.contains("show")){ e.preventDefault(); $("#playBtn").click(); }
+});
+init();
+</script>
+</body>
+</html>
