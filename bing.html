@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Bing Longitudinal Drawing Explorer</title>
+<title>Longitudinal Drawing Explorer</title>
 <style>
   :root{
     --bg:#f0f0f0; --panel:#f7f7f7; --panel2:#e8e8e8; --line:#d9d9d9;
@@ -123,8 +123,8 @@
 </head>
 <body>
 <header>
-  <h1>Bing Longitudinal Drawing Explorer</h1>
-  <span class="sub" id="subline">Bing Nursery School · same children drawing over time</span>
+  <h1>Longitudinal Drawing Explorer</h1>
+  <span class="sub" id="subline">Longitudinal drawing dataset · same children drawing over time</span>
   <span class="spacer"></span>
   <div class="seg" id="modeSeg">
     <button data-mode="child" class="on">Child over time</button>
@@ -263,7 +263,7 @@ async function init(){
   buildPartColors();
   const m=INDEX.meta;
   $("#subline").textContent =
-    `Bing Nursery School · ${m.n_children} children · ${m.n_sketches.toLocaleString()} drawings `+
+    `Longitudinal drawing dataset · ${m.n_children} children · ${m.n_sketches.toLocaleString()} drawings `+
     `(${m.n_annotated.toLocaleString()} part-labeled) · ages ${m.age_min}–${m.age_max} · `+
     `${m.date_min.slice(0,7)} to ${m.date_max.slice(0,7)}`;
   thumb.io=new IntersectionObserver(ents=>{ for(const e of ents){ if(e.target._it) e.target._it.visible=e.isIntersecting; } }, {rootMargin:"160px"});
