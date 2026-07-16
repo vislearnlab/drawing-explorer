@@ -59,6 +59,10 @@ OUT_DIR = os.path.join(HERE, "bing_data")
 NUM_RE = re.compile(r"-?\d+\.?\d*")
 MIN_STROKE_LEN = 2.5      # canvas units; shorter strokes are stray taps/dots
 PAD_FRAC = 0.06           # viewBox padding as a fraction of the larger bbox side
+# The square/shape *tracing* control trials are not object-drawing categories
+# (kids traced a shown square/shape); the annotation analyses use only the 12
+# object categories, so we drop these to match.
+EXCLUDE_CATEGORIES = {"shape", "square", "this square"}
 # labels that carry little semantic meaning (rendered gray / very faint)
 LOW_MEANING = {"unintelligible", "other", "none", "?", "na", "n/a", "", "i cant tell"}
 
@@ -162,6 +166,8 @@ def main():
     sk = {}
     with open(STROKES_CSV, encoding="utf-8") as fh:
         for r in csv.DictReader(fh):
+            if r["category"] in EXCLUDE_CATEGORIES:
+                continue
             fn = r["filename"]
             s = sk.get(fn)
             if s is None:
