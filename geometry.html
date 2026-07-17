@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Children's Drawing Explorer — Right Angles, Parallel Lines & Equal Sides</title>
+<style>
+  :root{
+    --bg:#f0f0f0; --panel:#f7f7f7; --panel2:#e8e8e8; --line:#d9d9d9;
+    --ink:#1a1a1a; --muted:#6f6f6f; --accent:#2e6df6; --tile:#ffffff;
+    --faint:#c9ccd2;                 /* the un-highlighted drawing */
+    --right:#e76f00;                 /* right-angle marks (amber) */
+    --parallel:#2e6df6;              /* parallel-line marks (blue) */
+    --equal:#12916b;                 /* equal-side marks (green) */
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:var(--bg); color:var(--ink);
+    font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    display:flex; flex-direction:column; height:100vh; overflow:hidden;
+  }
+  header{
+    padding:11px 18px; border-bottom:1px solid var(--line); background:var(--panel);
+    display:flex; align-items:baseline; gap:12px; flex-wrap:wrap;
+  }
+  header h1{font-size:16px; margin:0; font-weight:700; letter-spacing:.2px}
+  header .sub{color:var(--muted); font-size:12px}
+  header .spacer{flex:1}
+
+  /* controls bar */
+  .bar{
+    padding:9px 18px; border-bottom:1px solid var(--line); background:var(--panel);
+    display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+  }
+  select{
+    background:#fff; color:var(--ink); border:1px solid var(--line);
+    border-radius:7px; padding:6px 8px; font-size:13px; font-weight:600;
+  }
+  select.cat{text-transform:capitalize}
+  .seg{display:flex; border:1px solid var(--line); border-radius:8px; overflow:hidden; background:#fff}
+  .seg button{
+    background:#fff; color:var(--ink); border:0; border-left:1px solid var(--line);
+    padding:7px 13px; cursor:pointer; font-size:13px; font-weight:600; white-space:nowrap;
+  }
+  .seg button:first-child{border-left:0}
+  .seg button .dot{display:inline-block; width:9px; height:9px; border-radius:3px; margin-right:6px; vertical-align:middle}
+  .seg button.on[data-f="right"]{background:var(--right); color:#fff}
+  .seg button.on[data-f="parallel"]{background:var(--parallel); color:#fff}
+  .seg button.on[data-f="equal"]{background:var(--equal); color:#fff}
+  .seg button.on[data-f="all"]{background:#333; color:#fff}
+  .barlabel{font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted)}
+  .count{color:var(--muted); font-size:12px; margin-left:auto; font-variant-numeric:tabular-nums}
+
+  /* legend explaining the marks */
+  .marklegend{display:flex; gap:16px; align-items:center; flex-wrap:wrap}
+  .mk{display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted)}
+  .mk svg{width:26px; height:20px; display:block}
+
+  .note{
+    padding:7px 18px; background:#fbfbfb; border-bottom:1px solid var(--line);
+    color:var(--muted); font-size:12px; line-height:1.5;
+  }
+
+  .grid-wrap{flex:1; overflow:auto; padding:16px 18px}
+  .grid{display:grid; gap:12px; grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+  .card{
+    background:var(--tile); border:1px solid var(--line); border-radius:10px;
+    padding:7px; cursor:pointer; transition:border-color .12s, transform .12s, box-shadow .12s;
+  }
+  .card:hover{border-color:var(--accent); transform:translateY(-2px);
+    box-shadow:0 4px 14px rgba(0,0,0,.09)}
+  .card svg{width:100%; aspect-ratio:1; height:auto; display:block; background:var(--tile);
+    border-radius:6px; overflow:hidden}
+  .card .cap{font-size:11px; color:var(--muted); margin-top:5px; text-align:center;
+    font-variant-numeric:tabular-nums}
+  .empty{color:var(--muted); padding:50px; text-align:center}
+
+  /* modal */
+  .overlay{
+    position:fixed; inset:0; background:rgba(20,22,28,.5); backdrop-filter:blur(2px);
+    display:none; align-items:center; justify-content:center; z-index:20; padding:24px;
+  }
+  .overlay.show{display:flex}
+  .modal{
+    background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    width:min(560px,96vw); max-height:94vh; overflow:auto; padding:18px 20px;
+    box-shadow:0 18px 60px rgba(0,0,0,.25);
+  }
+  .modal .top{display:flex; align-items:baseline; gap:10px; margin-bottom:12px}
+  .modal .top h3{margin:0; font-size:17px; text-transform:capitalize}
+  .modal .top .tag{color:var(--muted); font-size:12.5px}
+  .modal .close{margin-left:auto; background:none; border:0; color:var(--muted);
+    font-size:24px; cursor:pointer; line-height:1}
+  .stage{background:#fff; border:1px solid var(--line); border-radius:10px;
+    width:min(460px,72vh,100%); aspect-ratio:1; margin:0 auto; overflow:hidden}
+  .stage svg{width:100%; height:100%; display:block; overflow:hidden}
+  .mfeat{display:flex; gap:8px; justify-content:center; margin:14px 0 4px; flex-wrap:wrap}
+  .mfeat button{
+    background:var(--panel2); color:var(--ink); border:1px solid var(--line);
+    border-radius:8px; padding:6px 12px; cursor:pointer; font-size:12.5px; font-weight:600;
+  }
+  .mfeat button .dot{display:inline-block; width:9px; height:9px; border-radius:3px; margin-right:6px; vertical-align:middle}
+  .mfeat button[data-f="right"].on{background:var(--right); color:#fff; border-color:var(--right)}
+  .mfeat button[data-f="parallel"].on{background:var(--parallel); color:#fff; border-color:var(--parallel)}
+  .mfeat button[data-f="equal"].on{background:var(--equal); color:#fff; border-color:var(--equal)}
+  .mfeat button[data-f="all"].on{background:#333; color:#fff; border-color:#333}
+  .mhint{color:var(--muted); font-size:12px; text-align:center; margin-top:6px}
+
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#cfcfcf;border-radius:8px}
+  ::-webkit-scrollbar-thumb:hover{background:#bcbcbc}
+</style>
+</head>
+<body>
+<header>
+  <h1>Children's Drawing Explorer</h1>
+  <span class="sub">right angles · parallel lines · equal sides — ages 4–8</span>
+  <span class="spacer"></span>
+  <span class="sub" id="statline"></span>
+</header>
+
+<div class="bar">
+  <select class="cat" id="catSel"></select>
+  <select id="ageSel"><option value="">all ages</option></select>
+  <span class="barlabel">show</span>
+  <div class="seg" id="feat">
+    <button data-f="right" class="on"><span class="dot" style="background:var(--right)"></span>Right angles</button>
+    <button data-f="parallel"><span class="dot" style="background:var(--parallel)"></span>Parallel lines</button>
+    <button data-f="equal"><span class="dot" style="background:var(--equal)"></span>Equal sides</button>
+    <button data-f="all"><span class="dot" style="background:#333"></span>All</button>
+  </div>
+  <span class="count" id="count"></span>
+</div>
+
+<div class="bar marklegend" id="marklegend"></div>
+
+<div class="note" id="note"></div>
+
+<div class="grid-wrap"><div class="grid" id="grid"></div>
+  <div class="empty" id="empty" style="display:none">No examples of this feature in this selection.</div></div>
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <div class="top">
+      <h3 id="mTitle"></h3>
+      <span class="tag" id="mTag"></span>
+      <button class="close" id="mClose">&times;</button>
+    </div>
+    <div class="stage"><svg id="mStage" preserveAspectRatio="xMidYMid meet"></svg></div>
+    <div class="mfeat" id="mfeat">
+      <button data-f="right"><span class="dot" style="background:var(--right)"></span>Right angles</button>
+      <button data-f="parallel"><span class="dot" style="background:var(--parallel)"></span>Parallel</button>
+      <button data-f="equal"><span class="dot" style="background:var(--equal)"></span>Equal sides</button>
+      <button data-f="all"><span class="dot" style="background:#333"></span>All</button>
+    </div>
+    <div class="mhint">Faint strokes are the child's original drawing; colored edges show where straight sides meet at a right angle, run parallel, or match in length.</div>
+  </div>
+</div>
+
+<script>
+const DATA_DIR = "strokes_data";
+const SVGNS = "http://www.w3.org/2000/svg";
+
+/* ---- geometry thresholds (canvas is 424px; see build_strokes.py) ---- */
+// Tuned so a highlighted feature reads as intentional, not an accident of a
+// wiggly freehand line: sides must be genuinely long & straight, right angles
+// close to 90°, parallels near-collinear in direction with real overlap. (At
+// these settings man-made objects — cars, trains, cups — show right angles at
+// ~2× the rate of animals, i.e. we're catching real structure, not noise.)
+const RDP_EPS        = 4;     // path simplification tolerance (px)
+const MIN_SIDE       = 44;    // a segment must be this long to count as a "side"
+const MIN_PARALLEL   = 60;    // parallel lines longer still, to read clearly
+const JOIN_TOL       = 8;     // two stroke ends this close share a corner
+const RIGHT_LO       = 82;    // a corner in [82°,98°] reads as a right angle
+const RIGHT_HI       = 98;
+const CORNER_LO      = 35;    // ignore near-straight / near-doubled-back joins
+const CORNER_HI      = 145;
+const PAR_ANGLE_TOL  = 5;     // orientation match for "parallel" (degrees)
+const PAR_MIN_OFF    = 14;    // parallel lines must be at least this far apart
+const PAR_OVERLAP    = 0.60;  // and overlap this fraction along their shared direction
+const EQUAL_TOL      = 0.08;  // two arms are "equal" within 8% length
+const EQUAL_MIN_ARM  = 56;    // and each arm must be a real side, not a stub
+
+const FEAT_COLOR = {right:"#e76f00", parallel:"#2e6df6", equal:"#12916b"};
+const FAINT = "#c9ccd2";   // the un-highlighted sketch (SVG attrs can't read var())
+
+let INDEX = null, CANVAS = 424, CANVAS_VB = "0 0 424 424";
+let curCat = null, curData = null, curFeat = "right";
+const analysisCache = new Map();   // drawing id -> {features...}
+
+const $ = s => document.querySelector(s);
+
+/* ---------------- path parsing (mirrors build_strokes.py) ---------------- */
+const CMD_RE = /([Mlhv])([^Mlhv]*)/g;
+const NUM_RE = /-?\d*\.?\d+/g;
+function pathPoints(d){
+  let cx=0, cy=0; const pts=[]; let m;
+  CMD_RE.lastIndex = 0;
+  while((m = CMD_RE.exec(d))){
+    const c = m[1];
+    const nums = (m[2].match(NUM_RE) || []).map(Number);
+    if(c==="M"){ for(let j=0;j+1<nums.length;j+=2){ cx=nums[j]; cy=nums[j+1]; pts.push([cx,cy]); } }
+    else if(c==="l"){ for(let j=0;j+1<nums.length;j+=2){ cx+=nums[j]; cy+=nums[j+1]; pts.push([cx,cy]); } }
+    else if(c==="h"){ for(const v of nums){ cx+=v; pts.push([cx,cy]); } }
+    else if(c==="v"){ for(const v of nums){ cy+=v; pts.push([cx,cy]); } }
+  }
+  return pts;
+}
+
+/* ---------------- geometry helpers ---------------- */
+const dist = (a,b) => Math.hypot(a[0]-b[0], a[1]-b[1]);
+function perpDist(p, a, b){
+  const dx=b[0]-a[0], dy=b[1]-a[1];
+  const L2 = dx*dx+dy*dy;
+  if(L2===0) return dist(p,a);
+  const t = ((p[0]-a[0])*dx + (p[1]-a[1])*dy)/L2;
+  const px = a[0]+t*dx, py = a[1]+t*dy;
+  return Math.hypot(p[0]-px, p[1]-py);
+}
+// Ramer–Douglas–Peucker: reduce a freehand polyline to its corners.
+function rdp(pts, eps){
+  if(pts.length < 3) return pts.slice();
+  let dmax=0, idx=0;
+  const a=pts[0], b=pts[pts.length-1];
+  for(let i=1;i<pts.length-1;i++){
+    const d = perpDist(pts[i], a, b);
+    if(d>dmax){ dmax=d; idx=i; }
+  }
+  if(dmax > eps){
+    const left = rdp(pts.slice(0, idx+1), eps);
+    const right = rdp(pts.slice(idx), eps);
+    return left.slice(0,-1).concat(right);
+  }
+  return [a, b];
+}
+// angle of a segment, normalized to [0,180)
+function segAngleDeg(s){
+  let a = Math.atan2(s.b[1]-s.a[1], s.b[0]-s.a[0]) * 180/Math.PI;
+  a = ((a % 180) + 180) % 180;
+  return a;
+}
+function orientDiff(a1, a2){
+  let d = Math.abs(a1-a2) % 180;
+  return Math.min(d, 180-d);
+}
+
+/* Extract straight "sides" from a drawing's strokes. */
+function extractSegments(strokes){
+  const segs = [];
+  strokes.forEach((s, si) => {
+    const pts = pathPoints(s.d);
+    if(pts.length < 2) return;
+    const simp = rdp(pts, RDP_EPS);
+    for(let i=0;i+1<simp.length;i++){
+      const a=simp[i], b=simp[i+1];
+      const len = dist(a,b);
+      if(len < MIN_SIDE) continue;
+      segs.push({a, b, len, stroke:si, ai:i, mid:[(a[0]+b[0])/2,(a[1]+b[1])/2]});
+    }
+  });
+  return segs;
+}
+
+/* A corner = two sides that meet at (nearly) a shared point. Returns the corner
+   point, unit directions along each arm (pointing away from the corner), the
+   opening angle, and the two arm lengths. */
+function cornersFrom(segs){
+  const corners = [];
+  const endsOf = s => [s.a, s.b];
+  for(let i=0;i<segs.length;i++){
+    for(let j=i+1;j<segs.length;j++){
+      const A=segs[i], B=segs[j];
+      // find the closest pair of endpoints
+      let best=null;
+      for(const ea of endsOf(A)) for(const eb of endsOf(B)){
+        const d = dist(ea, eb);
+        if(!best || d<best.d) best={d, ea, eb};
+      }
+      // consecutive segments in the same stroke share a vertex exactly (d≈0);
+      // different strokes may meet if their ends are within JOIN_TOL.
+      const sameStroke = A.stroke===B.stroke && Math.abs(A.ai-B.ai)===1;
+      if(!sameStroke && best.d > JOIN_TOL) continue;
+      const corner = [(best.ea[0]+best.eb[0])/2, (best.ea[1]+best.eb[1])/2];
+      const farA = best.ea===A.a ? A.b : A.a;
+      const farB = best.eb===B.a ? B.b : B.a;
+      const u1 = unit(corner, farA), u2 = unit(corner, farB);
+      let ang = Math.acos(Math.max(-1,Math.min(1, u1[0]*u2[0]+u1[1]*u2[1]))) * 180/Math.PI;
+      corners.push({corner, u1, u2, ang, la:A.len, lb:B.len, A, B});
+    }
+  }
+  return corners;
+}
+function unit(from, to){
+  const dx=to[0]-from[0], dy=to[1]-from[1], L=Math.hypot(dx,dy)||1;
+  return [dx/L, dy/L];
+}
+
+/* Parallel pairs: two long sides, near-equal orientation, clearly separated,
+   overlapping along their shared direction. */
+function parallelPairs(segs){
+  const out = [];
+  const longs = segs.filter(s => s.len >= MIN_PARALLEL);
+  for(let i=0;i<longs.length;i++){
+    for(let j=i+1;j<longs.length;j++){
+      const A=longs[i], B=longs[j];
+      if(orientDiff(segAngleDeg(A), segAngleDeg(B)) > PAR_ANGLE_TOL) continue;
+      // perpendicular offset between the two lines
+      const off = perpDist(B.mid, A.a, A.b);
+      if(off < PAR_MIN_OFF || off > 0.9*Math.min(A.len,B.len)+120) continue;
+      // projection overlap along A's direction
+      const dir = unit(A.a, A.b);
+      const proj = p => (p[0]-A.a[0])*dir[0] + (p[1]-A.a[1])*dir[1];
+      const aLo=0, aHi=A.len;
+      const bs=[proj(B.a), proj(B.b)]; const bLo=Math.min(...bs), bHi=Math.max(...bs);
+      const ov = Math.min(aHi,bHi)-Math.max(aLo,bLo);
+      if(ov < PAR_OVERLAP*Math.min(A.len,B.len)) continue;
+      out.push({A, B, quality: ov - off*0.15});
+    }
+  }
+  out.sort((x,y)=>y.quality-x.quality);
+  return out.slice(0, 4);
+}
+
+/* Analyze one drawing once; cache the result. */
+function analyze(d){
+  if(analysisCache.has(d.id)) return analysisCache.get(d.id);
+  const segs = extractSegments(d.strokes);
+  const corners = cornersFrom(segs).filter(c => c.ang>=CORNER_LO && c.ang<=CORNER_HI);
+  const right = corners.filter(c => c.ang>=RIGHT_LO && c.ang<=RIGHT_HI);
+  const equal = corners.filter(c =>
+    Math.abs(c.la-c.lb)/Math.max(c.la,c.lb) <= EQUAL_TOL &&
+    Math.min(c.la,c.lb) >= EQUAL_MIN_ARM);
+  const parallel = parallelPairs(segs);
+  const res = {segs, right, equal, parallel};
+  analysisCache.set(d.id, res);
+  return res;
+}
+function hasFeature(d, feat){
+  const a = analyze(d);
+  if(feat==="right")    return a.right.length>0;
+  if(feat==="parallel") return a.parallel.length>0;
+  if(feat==="equal")    return a.equal.length>0;
+  return a.right.length || a.parallel.length || a.equal.length;
+}
+
+/* ---------------- rendering ---------------- */
+function svgEl(tag, attrs){
+  const e = document.createElementNS(SVGNS, tag);
+  for(const k in attrs) e.setAttribute(k, attrs[k]);
+  return e;
+}
+function strokePath(d, color, w){
+  return svgEl("path", {d, fill:"none", stroke:color, "stroke-width":w,
+    "vector-effect":"non-scaling-stroke", "stroke-linecap":"round", "stroke-linejoin":"round"});
+}
+function boldSeg(seg, color, w){
+  return svgEl("line", {x1:seg.a[0], y1:seg.a[1], x2:seg.b[0], y2:seg.b[1],
+    stroke:color, "stroke-width":w, "vector-effect":"non-scaling-stroke", "stroke-linecap":"round"});
+}
+
+// Build an annotated SVG for a drawing under the given feature ("all" = every kind).
+// The full sketch is drawn faint; only the straight edges that participate in the
+// chosen feature are re-drawn in that feature's color. No glyphs — the color is
+// the whole story.
+function renderDrawing(d, feat, strokeW){
+  const a = analyze(d);
+  const hw = strokeW + 1.4;                    // highlighted edges a bit heavier
+  const svg = svgEl("svg", {viewBox:CANVAS_VB, preserveAspectRatio:"xMidYMid meet"});
+  // 1) faint original drawing
+  for(const s of d.strokes) svg.appendChild(strokePath(s.d, FAINT, strokeW));
+  const want = f => feat==="all" || feat===f;
+  // 2) right angles — color both arms of each square-ish corner
+  if(want("right")){
+    const col = FEAT_COLOR.right;
+    for(const c of a.right){ svg.appendChild(boldSeg(c.A, col, hw)); svg.appendChild(boldSeg(c.B, col, hw)); }
+  }
+  // 3) equal sides — color both matched-length arms
+  if(want("equal")){
+    const col = FEAT_COLOR.equal;
+    for(const c of a.equal){ svg.appendChild(boldSeg(c.A, col, hw)); svg.appendChild(boldSeg(c.B, col, hw)); }
+  }
+  // 4) parallel lines — color each parallel pair
+  if(want("parallel")){
+    const col = FEAT_COLOR.parallel;
+    for(const pr of a.parallel){ svg.appendChild(boldSeg(pr.A, col, hw)); svg.appendChild(boldSeg(pr.B, col, hw)); }
+  }
+  return svg;
+}
+
+/* ---------------- gallery ---------------- */
+function renderGrid(){
+  const grid = $("#grid"); grid.innerHTML = "";
+  const age = $("#ageSel").value;
+  const list = curData.filter(d =>
+    (!age || String(d.age)===String(age)) && hasFeature(d, curFeat));
+  $("#empty").style.display = list.length ? "none" : "block";
+  $("#count").textContent = `${list.length} example${list.length===1?"":"s"}`;
+  for(const d of list){
+    const card = document.createElement("div"); card.className="card";
+    card.appendChild(renderDrawing(d, curFeat, 1.5));
+    const cap = document.createElement("div"); cap.className="cap";
+    cap.textContent = `age ${d.age ?? "?"}`;
+    card.appendChild(cap);
+    card.onclick = () => openModal(d);
+    grid.appendChild(card);
+  }
+}
+
+const MARK_LEGEND = {
+  right:    {label:"Right-angle corner", draw:s=>{ s.appendChild(svgEl("polyline",{points:"4,3 4,16 20,16",fill:"none",stroke:FEAT_COLOR.right,"stroke-width":2.6,"stroke-linecap":"round"})); }},
+  parallel: {label:"Parallel lines", draw:s=>{ s.appendChild(svgEl("line",{x1:3,y1:6,x2:23,y2:6,stroke:FEAT_COLOR.parallel,"stroke-width":2.6,"stroke-linecap":"round"})); s.appendChild(svgEl("line",{x1:3,y1:14,x2:23,y2:14,stroke:FEAT_COLOR.parallel,"stroke-width":2.6,"stroke-linecap":"round"})); }},
+  equal:    {label:"Equal-length sides", draw:s=>{ s.appendChild(svgEl("line",{x1:3,y1:16,x2:11,y2:4,stroke:FEAT_COLOR.equal,"stroke-width":2.6,"stroke-linecap":"round"})); s.appendChild(svgEl("line",{x1:11,y1:4,x2:19,y2:16,stroke:FEAT_COLOR.equal,"stroke-width":2.6,"stroke-linecap":"round"})); }},
+};
+function buildMarkLegend(){
+  const wrap = $("#marklegend"); wrap.innerHTML = "";
+  const keys = curFeat==="all" ? ["right","parallel","equal"] : [curFeat];
+  const lab = document.createElement("span"); lab.className="barlabel"; lab.textContent="marks";
+  wrap.appendChild(lab);
+  for(const k of keys){
+    const m = MARK_LEGEND[k];
+    const item = document.createElement("div"); item.className="mk";
+    const svg = svgEl("svg", {viewBox:"0 0 26 20"}); m.draw(svg);
+    const t = document.createElement("span"); t.textContent = m.label;
+    item.appendChild(svg); item.appendChild(t); wrap.appendChild(item);
+  }
+}
+
+const NOTE_TXT = "Illustrative examples, not a measurement. Each child's freehand strokes are simplified to their straight edges; edges that meet at a right angle, run parallel, or match in length are re-drawn in color over the faint sketch. Detection is approximate and only meant to surface where these regularities show up in real object drawings.";
+
+/* ---------------- modal ---------------- */
+let modalDraw = null, modalFeat = "all";
+function openModal(d){
+  modalDraw = d; modalFeat = curFeat==="all" ? "all" : curFeat;
+  $("#mTitle").textContent = curCat;
+  $("#mTag").textContent = `age ${d.age ?? "?"} · ${d.strokes.length} strokes`;
+  syncModalButtons();
+  drawModal();
+  $("#overlay").classList.add("show");
+}
+function drawModal(){
+  const svg = renderDrawing(modalDraw, modalFeat, 2.6);
+  const stage = $("#mStage");
+  stage.setAttribute("viewBox", CANVAS_VB);
+  stage.innerHTML = svg.innerHTML;
+}
+function syncModalButtons(){
+  document.querySelectorAll("#mfeat button").forEach(b =>
+    b.classList.toggle("on", b.dataset.f===modalFeat));
+}
+document.querySelectorAll("#mfeat button").forEach(b => {
+  b.onclick = () => { modalFeat = b.dataset.f; syncModalButtons(); drawModal(); };
+});
+function closeModal(){ $("#overlay").classList.remove("show"); }
+$("#mClose").onclick = closeModal;
+$("#overlay").onclick = e => { if(e.target.id==="overlay") closeModal(); };
+document.addEventListener("keydown", e => { if(e.key==="Escape") closeModal(); });
+
+/* ---------------- controls ---------------- */
+document.querySelectorAll("#feat button").forEach(b => {
+  b.onclick = () => {
+    curFeat = b.dataset.f;
+    document.querySelectorAll("#feat button").forEach(x => x.classList.toggle("on", x===b));
+    buildMarkLegend(); renderGrid();
+  };
+});
+$("#ageSel").onchange = renderGrid;
+
+async function loadCategory(name){
+  const data = await (await fetch(`${DATA_DIR}/${name}.json`)).json();
+  curCat = name; curData = data.drawings; analysisCache.clear();
+  const ages = INDEX.categories.find(c=>c.name===name).ages;
+  const ageSel = $("#ageSel");
+  ageSel.innerHTML = `<option value="">all ages</option>` +
+    ages.map(a=>`<option value="${a}">age ${a}</option>`).join("");
+  renderGrid();
+}
+
+/* ---------------- init ---------------- */
+async function init(){
+  INDEX = await (await fetch(`${DATA_DIR}/index.json`)).json();
+  if(INDEX.canvas){ CANVAS = INDEX.canvas; CANVAS_VB = `0 0 ${CANVAS} ${CANVAS}`; }
+  // man-made categories (straight edges, corners) lead the list; animals follow
+  const order = ["car","train","boat","airplane","cup","bottle","lamp","hat"];
+  const cats = INDEX.categories.slice().sort((a,b) => {
+    const ia=order.indexOf(a.name), ib=order.indexOf(b.name);
+    return (ia<0?99:ia)-(ib<0?99:ib) || a.name.localeCompare(b.name);
+  });
+  const total = INDEX.categories.reduce((a,c)=>a+c.n,0);
+  $("#statline").textContent = `${INDEX.categories.length} categories · ${total} drawings`;
+  const catSel = $("#catSel");
+  catSel.innerHTML = cats.map(c=>`<option value="${c.name}">${c.name}</option>`).join("");
+  catSel.value = cats[0].name;
+  catSel.onchange = () => loadCategory(catSel.value);
+  $("#note").textContent = NOTE_TXT;
+  buildMarkLegend();
+  await loadCategory(cats[0].name);
+}
+init();
+</script>
+</body>
+</html>
