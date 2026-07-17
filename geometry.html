@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Children's Drawing Explorer — Right Angles, Parallel Lines & Equal Sides</title>
+<title>Children's Drawing Explorer — Right Angles & Parallel Lines</title>
 <style>
   :root{
     --bg:#f0f0f0; --panel:#f7f7f7; --panel2:#e8e8e8; --line:#d9d9d9;
@@ -11,7 +11,6 @@
     --faint:#c9ccd2;                 /* the un-highlighted drawing */
     --right:#e76f00;                 /* right-angle marks (amber) */
     --parallel:#2e6df6;              /* parallel-line marks (blue) */
-    --equal:#12916b;                 /* equal-side marks (green) */
   }
   *{box-sizing:border-box}
   html,body{margin:0;height:100%}
@@ -47,7 +46,6 @@
   .seg button .dot{display:inline-block; width:9px; height:9px; border-radius:3px; margin-right:6px; vertical-align:middle}
   .seg button.on[data-f="right"]{background:var(--right); color:#fff}
   .seg button.on[data-f="parallel"]{background:var(--parallel); color:#fff}
-  .seg button.on[data-f="equal"]{background:var(--equal); color:#fff}
   .seg button.on[data-f="all"]{background:#333; color:#fff}
   .barlabel{font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted)}
   .count{color:var(--muted); font-size:12px; margin-left:auto; font-variant-numeric:tabular-nums}
@@ -103,7 +101,6 @@
   .mfeat button .dot{display:inline-block; width:9px; height:9px; border-radius:3px; margin-right:6px; vertical-align:middle}
   .mfeat button[data-f="right"].on{background:var(--right); color:#fff; border-color:var(--right)}
   .mfeat button[data-f="parallel"].on{background:var(--parallel); color:#fff; border-color:var(--parallel)}
-  .mfeat button[data-f="equal"].on{background:var(--equal); color:#fff; border-color:var(--equal)}
   .mfeat button[data-f="all"].on{background:#333; color:#fff; border-color:#333}
   .mhint{color:var(--muted); font-size:12px; text-align:center; margin-top:6px}
 
@@ -115,7 +112,7 @@
 <body>
 <header>
   <h1>Children's Drawing Explorer</h1>
-  <span class="sub">right angles · parallel lines · equal sides — ages 4–8</span>
+  <span class="sub">right angles · parallel lines — ages 4–8</span>
   <span class="spacer"></span>
   <span class="sub" id="statline"></span>
 </header>
@@ -127,8 +124,7 @@
   <div class="seg" id="feat">
     <button data-f="right" class="on"><span class="dot" style="background:var(--right)"></span>Right angles</button>
     <button data-f="parallel"><span class="dot" style="background:var(--parallel)"></span>Parallel lines</button>
-    <button data-f="equal"><span class="dot" style="background:var(--equal)"></span>Equal sides</button>
-    <button data-f="all"><span class="dot" style="background:#333"></span>All</button>
+    <button data-f="all"><span class="dot" style="background:#333"></span>Both</button>
   </div>
   <span class="count" id="count"></span>
 </div>
@@ -151,10 +147,9 @@
     <div class="mfeat" id="mfeat">
       <button data-f="right"><span class="dot" style="background:var(--right)"></span>Right angles</button>
       <button data-f="parallel"><span class="dot" style="background:var(--parallel)"></span>Parallel</button>
-      <button data-f="equal"><span class="dot" style="background:var(--equal)"></span>Equal sides</button>
-      <button data-f="all"><span class="dot" style="background:#333"></span>All</button>
+      <button data-f="all"><span class="dot" style="background:#333"></span>Both</button>
     </div>
-    <div class="mhint">Faint strokes are the child's original drawing; colored edges show where straight sides meet at a right angle, run parallel, or match in length.</div>
+    <div class="mhint">Faint strokes are the child's original drawing; colored edges show where straight sides meet at a right angle or run parallel.</div>
   </div>
 </div>
 
@@ -179,10 +174,8 @@ const CORNER_HI      = 145;
 const PAR_ANGLE_TOL  = 5;     // orientation match for "parallel" (degrees)
 const PAR_MIN_OFF    = 14;    // parallel lines must be at least this far apart
 const PAR_OVERLAP    = 0.60;  // and overlap this fraction along their shared direction
-const EQUAL_TOL      = 0.08;  // two arms are "equal" within 8% length
-const EQUAL_MIN_ARM  = 56;    // and each arm must be a real side, not a stub
 
-const FEAT_COLOR = {right:"#e76f00", parallel:"#2e6df6", equal:"#12916b"};
+const FEAT_COLOR = {right:"#e76f00", parallel:"#2e6df6"};
 const FAINT = "#c9ccd2";   // the un-highlighted sketch (SVG attrs can't read var())
 
 let INDEX = null, CANVAS = 424, CANVAS_VB = "0 0 424 424";
@@ -328,11 +321,8 @@ function analyze(d){
   const segs = extractSegments(d.strokes);
   const corners = cornersFrom(segs).filter(c => c.ang>=CORNER_LO && c.ang<=CORNER_HI);
   const right = corners.filter(c => c.ang>=RIGHT_LO && c.ang<=RIGHT_HI);
-  const equal = corners.filter(c =>
-    Math.abs(c.la-c.lb)/Math.max(c.la,c.lb) <= EQUAL_TOL &&
-    Math.min(c.la,c.lb) >= EQUAL_MIN_ARM);
   const parallel = parallelPairs(segs);
-  const res = {segs, right, equal, parallel};
+  const res = {segs, right, parallel};
   analysisCache.set(d.id, res);
   return res;
 }
@@ -340,8 +330,7 @@ function hasFeature(d, feat){
   const a = analyze(d);
   if(feat==="right")    return a.right.length>0;
   if(feat==="parallel") return a.parallel.length>0;
-  if(feat==="equal")    return a.equal.length>0;
-  return a.right.length || a.parallel.length || a.equal.length;
+  return a.right.length || a.parallel.length;
 }
 
 /* ---------------- rendering ---------------- */
@@ -375,12 +364,7 @@ function renderDrawing(d, feat, strokeW){
     const col = FEAT_COLOR.right;
     for(const c of a.right){ svg.appendChild(boldSeg(c.A, col, hw)); svg.appendChild(boldSeg(c.B, col, hw)); }
   }
-  // 3) equal sides — color both matched-length arms
-  if(want("equal")){
-    const col = FEAT_COLOR.equal;
-    for(const c of a.equal){ svg.appendChild(boldSeg(c.A, col, hw)); svg.appendChild(boldSeg(c.B, col, hw)); }
-  }
-  // 4) parallel lines — color each parallel pair
+  // 3) parallel lines — color each parallel pair
   if(want("parallel")){
     const col = FEAT_COLOR.parallel;
     for(const pr of a.parallel){ svg.appendChild(boldSeg(pr.A, col, hw)); svg.appendChild(boldSeg(pr.B, col, hw)); }
@@ -410,11 +394,10 @@ function renderGrid(){
 const MARK_LEGEND = {
   right:    {label:"Right-angle corner", draw:s=>{ s.appendChild(svgEl("polyline",{points:"4,3 4,16 20,16",fill:"none",stroke:FEAT_COLOR.right,"stroke-width":2.6,"stroke-linecap":"round"})); }},
   parallel: {label:"Parallel lines", draw:s=>{ s.appendChild(svgEl("line",{x1:3,y1:6,x2:23,y2:6,stroke:FEAT_COLOR.parallel,"stroke-width":2.6,"stroke-linecap":"round"})); s.appendChild(svgEl("line",{x1:3,y1:14,x2:23,y2:14,stroke:FEAT_COLOR.parallel,"stroke-width":2.6,"stroke-linecap":"round"})); }},
-  equal:    {label:"Equal-length sides", draw:s=>{ s.appendChild(svgEl("line",{x1:3,y1:16,x2:11,y2:4,stroke:FEAT_COLOR.equal,"stroke-width":2.6,"stroke-linecap":"round"})); s.appendChild(svgEl("line",{x1:11,y1:4,x2:19,y2:16,stroke:FEAT_COLOR.equal,"stroke-width":2.6,"stroke-linecap":"round"})); }},
 };
 function buildMarkLegend(){
   const wrap = $("#marklegend"); wrap.innerHTML = "";
-  const keys = curFeat==="all" ? ["right","parallel","equal"] : [curFeat];
+  const keys = curFeat==="all" ? ["right","parallel"] : [curFeat];
   const lab = document.createElement("span"); lab.className="barlabel"; lab.textContent="marks";
   wrap.appendChild(lab);
   for(const k of keys){
@@ -426,7 +409,7 @@ function buildMarkLegend(){
   }
 }
 
-const NOTE_TXT = "Illustrative examples, not a measurement. Each child's freehand strokes are simplified to their straight edges; edges that meet at a right angle, run parallel, or match in length are re-drawn in color over the faint sketch. Detection is approximate and only meant to surface where these regularities show up in real object drawings.";
+const NOTE_TXT = "Illustrative examples, not a measurement. Each child's freehand strokes are simplified to their straight edges; edges that meet at a right angle or run parallel are re-drawn in color over the faint sketch. Detection is approximate and only meant to surface where these regularities show up in real object drawings.";
 
 /* ---------------- modal ---------------- */
 let modalDraw = null, modalFeat = "all";
